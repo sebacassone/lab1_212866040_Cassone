@@ -1,10 +1,10 @@
 #lang racket
 
 ;; TDA System = name (String) x users (list String) x drives (drive list) x current-user (String) x current-drive (Char) x
-;; current-status (String) x fecha_creacion (String) x fecha_modificación (String)
+;; current-status (String) x patch_actual (String) x Folders (Folder)  x fecha_creacion (String) x fecha_modificación (String)
 ;; TDA Drive = letter (String list) x name (String) x folders (folder list) x capacity (String)
 ;; TDA Folder = name (String) x files (file list) x  folder_hijo_izquierdo (list folder) x folder_hermano_derecho (list folder)
-;; x patch_actual (String)
+;; x patch (String)
 ;; TDA File = name (String) x Ruta (String) x Contenido (String)
 
 ;; Permisos estructura = ( Leer: 1 o 0, Escribir: 1 o 0, root: 1 o 0)
@@ -14,11 +14,11 @@
 
 ;; Constructor de TDA System
 ;; Se inicializa el sistema
-(define system (lambda (name) (make-system name '() '() "" "" "" (current-seconds))))
+(define system (lambda (name) (make-system name '() '() "" "" "" "" '() (current-seconds))))
 ;; Se extrae como una función aparte el constructor del sistema ya que será utilizado por otras funciones más.
 (define make-system (lambda
-                        (name users drives current-user current-drive current-status seconds)
-                      (list name users drives current-user current-drive current-status seconds (current-seconds))
+                        (name users drives current-user current-drive current-status patch folders seconds)
+                      (list name users drives current-user current-drive current-status patch folders seconds (current-seconds))
                       ))
 
 ;; Se construye una unidad para la lista de drives
@@ -43,7 +43,9 @@
 (define get-system-current-user (lambda (sistema) (list-ref sistema 3)))
 (define get-system-current-drive (lambda (sistema) (list-ref sistema 4)))
 (define get-system-current-status (lambda (sistema) (list-ref sistema 5)))
-(define get-system-fecha-creacion (lambda (sistema) (list-ref sistema 6)))
+(define get-system-patch (lambda (sistema) (list-ref sistema 6)))
+(define get-system-folder (lambda (sistema) (list-ref sistema 7)))
+(define get-system-fecha-creacion (lambda (sistema) (list-ref sistema 8)))
 
 ;; Obtener todas las letras existentes de los drives
 
@@ -59,12 +61,17 @@
                                                                                        (get-system-current-user sistema)
                                                                                        (get-system-current-drive sistema)
                                                                                        (get-system-current-status sistema)
+                                                                                       (get-system-patch sistema)
+                                                                                       (get-system-folder sistema)
                                                                                        (get-system-fecha-creacion sistema))
                                                                           (cons (car (car (get-system-drive sistema))) (cons letras null)))
                                                                          )
                                                                      ))
                                 (get-letters-all-drives-int sistema '())
                                 ))
+;; Obtiene las carpetas guardadas en el drive
+(define get-system-folder-drive (lambda (letter system)
+                                  
 
 ;; Otras funciones de los TDA
 ;; Ejecutar una función sobre el sistema (creación de archivos, carpetas, renombrar, copiar, mover, eliminar,
@@ -113,6 +120,8 @@
                        (get-system-current-user system)
                        (get-system-current-drive system)
                        (get-system-current-status system)
+                       (get-system-patch sistema)
+                       (get-system-folder sistema)
                        (get-system-fecha-creacion system))
           )
       )))
@@ -128,6 +137,8 @@
                                       (get-system-current-user system)
                                       (get-system-current-drive system)
                                       (get-system-current-status system)
+                                      (get-system-patch sistema)
+                                      (get-system-folder sistema)
                                       (get-system-fecha-creacion system))
                          )
                      )))
@@ -142,6 +153,8 @@
                                       userName
                                       (get-system-current-drive system)
                                       (get-system-current-status system)
+                                      (get-system-patch sistema)
+                                      (get-system-folder sistema)
                                       (get-system-fecha-creacion system))
                           system
                          )
@@ -156,11 +169,36 @@
                                       ""
                                       (get-system-current-drive system)
                                       (get-system-current-status system)
+                                      (get-system-patch sistema)
+                                      (get-system-folder sistema)
                                       (get-system-fecha-creacion system))
                           system
                          )
     ))
-                
+
+;; Cambia de drive solo si hay un usuario logeado
+;; Debe tener dos cosas principalmente, en system debe marcar que se seleccionó la letra que se quiere
+;; y además debe replicar los archivos que están en el disco dejandolos en system también.
+(define switch-drive (lambda (system)
+                       (lambda (letter)
+                         (if (and
+                              (not (eq? "" (get-system-current-user system))) ;; Si esta logeado
+                              (memq letter (get-letters-all-drives system)) ;; Si la letra existe
+                              )
+                             (make-system (get-system-name system)
+                                      (get-system-usuarios system)
+                                      (get-system-drive system)
+                                      (get-system-current-user system)
+                                      (get-system-current-drive system)
+                                      (get-system-current-status system)
+                                      "/"
+                                      (get-system-folder-drive sistema letter)
+                                      (get-system-fecha-creacion system))
+                          system
+                         )
+                        )))
+                             
+                         
 
 ;; Script
 ;; Se crea el sistema

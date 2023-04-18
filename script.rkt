@@ -7,9 +7,9 @@
 (define S3 ((run S2 add-drive) #\D "Util" 2000))
 
 ;añadiendo usuarios. Incluye caso S6 que intenta registrar usuario duplicado
-(define S4 ((run S3 registeradd-user) "user1"))
-(define S5 ((run S4 registeradd-user) "user1"))
-(define S6 ((run S5 registeradd-user) "user2"))
+(define S4 ((run S3 register) "user1"))
+(define S5 ((run S4 register) "user1"))
+(define S6 ((run S5 register) "user2"))
 
 ;iniciando sesión con usuarios. Incluye caso S8 que intenta iniciar sesión con user2 sin antes haber salido con user1
 (define S7 ((run S6 login) "user1"))
