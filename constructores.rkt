@@ -1,7 +1,6 @@
 #lang racket
 
-;; TDA User = name (String) x permisos (list String)
-;; TDA System = name (String) x users (User list) x drives (drive list) x current-user (String) x current-drive (Char) x
+;; TDA System = name (String) x users (list String) x drives (drive list) x current-user (String) x current-drive (Char) x
 ;; current-status (String) x fecha_creacion (String) x fecha_modificación (String)
 ;; TDA Drive = letter (String list) x name (String) x folders (folder list) x capacity (String)
 ;; TDA Folder = name (String) x files (file list) x  folder_hijo_izquierdo (list folder) x folder_hermano_derecho (list folder)
@@ -96,7 +95,7 @@
                (funcion sistema)
                "No tienes permisos sobre este archivo")
            )
-           ;; En el caso de que el tipo de comando sea sobre el sistema se da libertad al usuario
+          ;; En el caso de que el tipo de comando sea sobre el sistema se da libertad al usuario
           (else (funcion sistema))
           )
     ))
@@ -107,26 +106,68 @@
     (lambda (letter name capacity) ;; Información de la unidad que se creará
       (if (memq letter (get-letters-all-drives system))
           system
-      (make-system (get-system-name system)
-                   (get-system-usuarios system)
-                   (cons (make-drive letter name capacity)
-                         (get-system-drive system))
-                   (get-system-current-user system)
-                   (get-system-current-drive system)
-                   (get-system-current-status system)
-                   (get-system-fecha-creacion system))
-      )
-    )))
+          (make-system (get-system-name system)
+                       (get-system-usuarios system)
+                       (cons (make-drive letter name capacity)
+                             (get-system-drive system))
+                       (get-system-current-user system)
+                       (get-system-current-drive system)
+                       (get-system-current-status system)
+                       (get-system-fecha-creacion system))
+          )
+      )))
 
 ;; Se crea un nuevo usuario 
+(define register (lambda (system)
+                   (lambda (userName)
+                     (if (memq userName (get-system-usuarios system))
+                         system
+                         (make-system (get-system-name system)
+                                      (cons userName (get-system-usuarios system))
+                                      (get-system-drive system)
+                                      (get-system-current-user system)
+                                      (get-system-current-drive system)
+                                      (get-system-current-status system)
+                                      (get-system-fecha-creacion system))
+                         )
+                     )))
+
+;; Se inicia sesión en un usuario solo si este existe.
+(define login (lambda (system)
+  (lambda (userName)
+   (if (and (memq userName (get-system-usuarios system)) (eq? "" (get-system-current-user system)))
+                         (make-system (get-system-name system)
+                                      (get-system-usuarios system)
+                                      (get-system-drive system)
+                                      userName
+                                      (get-system-current-drive system)
+                                      (get-system-current-status system)
+                                      (get-system-fecha-creacion system))
+                          system
+                         )
+    )))
+  
+                
 
 ;; Script
 ;; Se crea el sistema
 (define S0 (system "newSystem"))
 S0
 ;; Se añaden unidades a S0
-;añadiendo unidades. Incluye caso S2 que intenta añadir unidad con una letra que ya existe
+;; Añadiendo unidades. Incluye caso S2 que intenta añadir unidad con una letra que ya existe
 (define S1 ((run S0 add-drive) #\C "SO" 1000))
 (define S2 ((run S1 add-drive) #\C "SO1" 3000))
 (define S3 ((run S2 add-drive) #\D "Util" 2000))
 S3
+
+;; Añadiendo usuarios. Incluye caso S6 que intenta registrar usuario duplicado
+(define S4 ((run S3 register) "user1"))
+(define S5 ((run S4 register) "user1"))
+(define S6 ((run S5 register) "user2"))
+S6
+
+;; iniciando sesión con usuarios. Incluye caso S8 que intenta iniciar sesión con user2 sin antes haber salido con user1
+(define S7 ((run S6 login) "user1"))
+S7
+(define S8 ((run S7 login) "user2"))
+S8
