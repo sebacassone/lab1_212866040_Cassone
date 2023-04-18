@@ -2,7 +2,7 @@
 
 ;; TDA User = name (String) x permisos (list String)
 ;; TDA System = name (String) x users (User list) x drives (drive list) x current-user (String) x current-drive (Char) x
-;; current-status (String) x fecha_creacion (String)
+;; current-status (String) x fecha_creacion (String) x fecha_modificación (String)
 ;; TDA Drive = letter (String list) x name (String) x folders (folder list) x capacity (String)
 ;; TDA Folder = name (String) x files (file list) x  folder_hijo_izquierdo (list folder) x folder_hermano_derecho (list folder)
 ;; x patch_actual (String)
@@ -15,11 +15,11 @@
 
 ;; Constructor de TDA System
 ;; Se inicializa el sistema
-(define system (lambda (name) (make-system name null null "" "" "" (current-seconds))))
+(define system (lambda (name) (make-system name '() '() "" "" "" (current-seconds))))
 ;; Se extrae como una función aparte el constructor del sistema ya que será utilizado por otras funciones más.
 (define make-system (lambda
                         (name users drives current-user current-drive current-status seconds)
-                      (list name users drives current-user current-drive current-status seconds)
+                      (list name users drives current-user current-drive current-status seconds (current-seconds))
                       ))
 
 ;; Se construye una unidad para la lista de drives
@@ -45,6 +45,27 @@
 (define get-system-current-drive (lambda (sistema) (list-ref sistema 4)))
 (define get-system-current-status (lambda (sistema) (list-ref sistema 5)))
 (define get-system-fecha-creacion (lambda (sistema) (list-ref sistema 6)))
+
+;; Obtener todas las letras existentes de los drives
+
+(define get-letters-all-drives(
+                               lambda (sistema)
+                                (define get-letters-all-drives-int (
+                                                                    lambda (sistema letras)
+                                                                     (if (null? (get-system-drive sistema)) letras
+                                                                         (get-letters-all-drives-int
+                                                                          (make-system (get-system-name sistema)
+                                                                                       (get-system-usuarios sistema)
+                                                                                       (cdr (get-system-drive sistema))
+                                                                                       (get-system-current-user sistema)
+                                                                                       (get-system-current-drive sistema)
+                                                                                       (get-system-current-status sistema)
+                                                                                       (get-system-fecha-creacion sistema))
+                                                                          (cons (car (car (get-system-drive sistema))) (cons letras null)))
+                                                                         )
+                                                                     ))
+                                (get-letters-all-drives-int sistema '())
+                                ))
 
 ;; Otras funciones de los TDA
 ;; Ejecutar una función sobre el sistema (creación de archivos, carpetas, renombrar, copiar, mover, eliminar,
@@ -72,11 +93,11 @@
            ;; Verifica si el usuario tiene permisos sobre el archivo
            (if (eq? (verificar-permisos 1) 1)
                ;; Caso de que tenga permisos
-               (cons (funcion sistema) (cons (current-seconds) "Entró") )
+               (funcion sistema)
                "No tienes permisos sobre este archivo")
            )
            ;; En el caso de que el tipo de comando sea sobre el sistema se da libertad al usuario
-          (else (cons (funcion sistema) (cons (current-seconds) "No entró")))
+          (else (funcion sistema))
           )
     ))
 
@@ -84,6 +105,8 @@
 (define add-drive
   (lambda (system)
     (lambda (letter name capacity) ;; Información de la unidad que se creará
+      (if (memq letter (get-letters-all-drives system))
+          system
       (make-system (get-system-name system)
                    (get-system-usuarios system)
                    (cons (make-drive letter name capacity)
@@ -93,12 +116,17 @@
                    (get-system-current-status system)
                    (get-system-fecha-creacion system))
       )
-    ))
+    )))
+
+;; Se crea un nuevo usuario 
 
 ;; Script
 ;; Se crea el sistema
 (define S0 (system "newSystem"))
 S0
 ;; Se añaden unidades a S0
-(define S1 ((run S0 add-drive) #\C "S0" 1000))
-S1
+;añadiendo unidades. Incluye caso S2 que intenta añadir unidad con una letra que ya existe
+(define S1 ((run S0 add-drive) #\C "SO" 1000))
+(define S2 ((run S1 add-drive) #\C "SO1" 3000))
+(define S3 ((run S2 add-drive) #\D "Util" 2000))
+S3
