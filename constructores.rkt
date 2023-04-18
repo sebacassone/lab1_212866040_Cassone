@@ -146,7 +146,20 @@
                           system
                          )
     )))
-  
+
+;; Se cierra sesión de un usuario solo si este existe
+(define logout (lambda (system)
+   (if (not (eq? "" (get-system-current-user system)))
+                         (make-system (get-system-name system)
+                                      (get-system-usuarios system)
+                                      (get-system-drive system)
+                                      ""
+                                      (get-system-current-drive system)
+                                      (get-system-current-status system)
+                                      (get-system-fecha-creacion system))
+                          system
+                         )
+    ))
                 
 
 ;; Script
@@ -171,3 +184,9 @@ S6
 S7
 (define S8 ((run S7 login) "user2"))
 S8
+
+;; cerrando sesión user1 e iniciando con user2
+(define S9 (run S8 logout))
+S9
+(define S10 ((run S9 login) "user2"))
+S10
