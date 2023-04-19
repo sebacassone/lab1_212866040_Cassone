@@ -1,7 +1,7 @@
 #lang racket
 
 ;; TDA System = name (String) x users (list String) x drives (drive list) x current-user (String) x current-drive (Char) x
-;; current-status (String) x patch_actual (String) x Folders (Folder)  x fecha_creacion (String) x fecha_modificación (String)
+;; patch_actual (String) x Folders (Folder)  x fecha_creacion (String) x fecha_modificación (String)
 ;; TDA Drive = letter (String list) x name (String) x folders (folder list) x capacity (String)
 ;; TDA Folder = name (String) x files (file list) x  folder_hijo_izquierdo (list folder) x folder_hermano_derecho (list folder)
 ;; x patch (String)
@@ -14,11 +14,11 @@
 
 ;; Constructor de TDA System
 ;; Se inicializa el sistema
-(define system (lambda (name) (make-system name '() '() "" "" "" "" '() (current-seconds))))
+(define system (lambda (name) (make-system name '() '() "" "" "" '() (current-seconds))))
 ;; Se extrae como una función aparte el constructor del sistema ya que será utilizado por otras funciones más.
 (define make-system (lambda
-                        (name users drives current-user current-drive current-status patch folders seconds)
-                      (list name users drives current-user current-drive current-status patch folders seconds (current-seconds))
+                        (name users drives current-user current-drive patch folders seconds)
+                      (list name users drives current-user current-drive patch folders seconds (current-seconds))
                       ))
 
 ;; Se construye una unidad para la lista de drives
@@ -36,16 +36,15 @@
                    ))
 (define get-current-user (lambda (system user) (get-user cadr user)))
 
-;; Se obtiene el nombre del sistema, usuarios, drives, current-user, current-drive, current-status, fecha-creación
+;; Se obtiene el nombre del sistema, usuarios, drives, current-user, current-drive, fecha-creación
 (define get-system-name (lambda (sistema) (list-ref sistema 0)))
 (define get-system-usuarios (lambda (sistema) (list-ref sistema 1)))
 (define get-system-drive (lambda (sistema) (list-ref sistema 2)))
 (define get-system-current-user (lambda (sistema) (list-ref sistema 3)))
 (define get-system-current-drive (lambda (sistema) (list-ref sistema 4)))
-(define get-system-current-status (lambda (sistema) (list-ref sistema 5)))
-(define get-system-patch (lambda (sistema) (list-ref sistema 6)))
-(define get-system-folder (lambda (sistema) (list-ref sistema 7)))
-(define get-system-fecha-creacion (lambda (sistema) (list-ref sistema 8)))
+(define get-system-patch (lambda (sistema) (list-ref sistema 5)))
+(define get-system-folder (lambda (sistema) (list-ref sistema 6)))
+(define get-system-fecha-creacion (lambda (sistema) (list-ref sistema 7)))
 
 ;; Obtener todas las letras existentes de los drives
 
@@ -60,7 +59,6 @@
                                                                                        (cdr (get-system-drive sistema))
                                                                                        (get-system-current-user sistema)
                                                                                        (get-system-current-drive sistema)
-                                                                                       (get-system-current-status sistema)
                                                                                        (get-system-patch sistema)
                                                                                        (get-system-folder sistema)
                                                                                        (get-system-fecha-creacion sistema))
@@ -70,8 +68,12 @@
                                 (get-letters-all-drives-int sistema '())
                                 ))
 ;; Obtiene las carpetas guardadas en el drive
-(define get-system-folder-drive (lambda (letter system)
-                                  
+(define get-system-folder-drive (lambda (drives letter)
+                                  (if (eq? letter (car (car drives)))
+                                      (list-ref (car drives) 2)
+                                      (get-system-folder-drive (cdr drives) letter)
+                                      )
+                                  ))
 
 ;; Otras funciones de los TDA
 ;; Ejecutar una función sobre el sistema (creación de archivos, carpetas, renombrar, copiar, mover, eliminar,
@@ -119,9 +121,8 @@
                              (get-system-drive system))
                        (get-system-current-user system)
                        (get-system-current-drive system)
-                       (get-system-current-status system)
-                       (get-system-patch sistema)
-                       (get-system-folder sistema)
+                       (get-system-patch system)
+                       (get-system-folder system)
                        (get-system-fecha-creacion system))
           )
       )))
@@ -136,9 +137,8 @@
                                       (get-system-drive system)
                                       (get-system-current-user system)
                                       (get-system-current-drive system)
-                                      (get-system-current-status system)
-                                      (get-system-patch sistema)
-                                      (get-system-folder sistema)
+                                      (get-system-patch system)
+                                      (get-system-folder system)
                                       (get-system-fecha-creacion system))
                          )
                      )))
@@ -152,9 +152,8 @@
                                       (get-system-drive system)
                                       userName
                                       (get-system-current-drive system)
-                                      (get-system-current-status system)
-                                      (get-system-patch sistema)
-                                      (get-system-folder sistema)
+                                      (get-system-patch system)
+                                      (get-system-folder system)
                                       (get-system-fecha-creacion system))
                           system
                          )
@@ -168,9 +167,8 @@
                                       (get-system-drive system)
                                       ""
                                       (get-system-current-drive system)
-                                      (get-system-current-status system)
-                                      (get-system-patch sistema)
-                                      (get-system-folder sistema)
+                                      (get-system-patch system)
+                                      (get-system-folder system)
                                       (get-system-fecha-creacion system))
                           system
                          )
@@ -189,10 +187,9 @@
                                       (get-system-usuarios system)
                                       (get-system-drive system)
                                       (get-system-current-user system)
-                                      (get-system-current-drive system)
-                                      (get-system-current-status system)
+                                      letter
                                       "/"
-                                      (get-system-folder-drive sistema letter)
+                                      (get-system-folder-drive (get-system-drive system) letter) ;; Obtiene los archivos del drive especificado
                                       (get-system-fecha-creacion system))
                           system
                          )
@@ -228,3 +225,8 @@ S8
 S9
 (define S10 ((run S9 login) "user2"))
 S10
+
+;; Cambios de unidad, incluyendo unidad inexistente K
+(define S11 ((run S10 switch-drive) #\K))
+(define S12 ((run S11 switch-drive) #\C))
+S12
