@@ -194,9 +194,27 @@
                           system
                          )
                         )))
-                             
-                         
 
+;; Se crea una nueva carpeta sobre la unidad montada.
+;; Se especifican 2 casos principales, el primero es que se especifica la ruta + el nombre del archivo
+;; y el segundo se especifica solo el nombre de archivo
+(define md (lambda (system)
+             (lambda (name)
+               (if (eq? separe-route name 1) ;; Si es solo el nombre se crea en el patch actual
+                   (make-directory (transform-to-list (get-system-patch system)) (remove-endbar name)) ;; Crea el directory en el patch actual
+                   (if (eq? (start-from-the-root name) 1) ;; Si parte desde /
+                       (make-directory (get-route-directory name) (remove-endbar (get-name-directory name))) ;; Transforma name a directorio como lista y nombre por separado
+                       (if (eq? (start-from-points name) 1) ;; Si contiene en name .. o .
+                           (make-directory (transform-points-to-route (get-system-patch system) name) (remove-endbar (transform-points-to-folder name)))
+                           (if (eq? (current-route-and-a-name name) 1) ;; Si name es una ruta tipo Escritorio/nombre carpeta, separa la ruta del nombre de la carpeta nueva.
+                               (make-directory (transform-path-without-root-to-route name) (remove-endbar (transform-path-without-root-to-folder name)))
+                               system ;; Si es algo invalido devuelve el sistema sin crear nada
+                               )
+                           )
+                       )
+                   )
+               )))
+                       
 ;; Script
 ;; Se crea el sistema
 (define S0 (system "newSystem"))
