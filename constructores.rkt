@@ -62,10 +62,11 @@
                                                                                        (get-system-patch sistema)
                                                                                        (get-system-folder sistema)
                                                                                        (get-system-fecha-creacion sistema))
-                                                                          (cons (car (car (get-system-drive sistema))) (cons letras null)))
+                                                                          (cons (car (car (get-system-drive sistema))) letras)
+                                                                          )
                                                                          )
                                                                      ))
-                                (get-letters-all-drives-int sistema '())
+                                (get-letters-all-drives-int sistema null)
                                 ))
 ;; Obtiene las carpetas guardadas en el drive
 (define get-system-folder-drive (lambda (drives letter)
@@ -228,5 +229,8 @@ S10
 
 ;; Cambios de unidad, incluyendo unidad inexistente K
 (define S11 ((run S10 switch-drive) #\K))
+S11
 (define S12 ((run S11 switch-drive) #\C))
 S12
+(define S13 ((run S12 switch-drive) #\D))
+S13
