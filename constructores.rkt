@@ -301,7 +301,7 @@
                        system
                       )
                  )))
-                      
+
 ;; Script
 ;; Se crea el sistema
 (define S0 (system "newSystem"))
@@ -348,3 +348,12 @@ S15
 S16
 (define S17 ((run S16 md) "Folder"))
 S17
+(define S18 ((run S17 md) "Folder2"))
+S18
+(define S19 ((run S18 md) "Folder2"))
+S19
+(define S20 ((run S19 switch-drive) #\C))
+(define S21 ((run S20 md) "Folder"))
+(define S22 ((run S21 md) "Folder2"))
+(define S23 ((run S22 md) "Folder2"))
+S23
