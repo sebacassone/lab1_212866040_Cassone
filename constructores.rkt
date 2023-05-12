@@ -264,15 +264,19 @@
                                         ;; Filtro solo las carpetas de esta ruta
                                         (if (null? folders)
                                             0
-                                            (if
-                                             (eq?
-                                              (car (car (filter (lambda (folder) (eq? (get-type-file folder) "folder")) (filter (lambda (folder) (eq? (get-path folder) path)) folders))))
-                                              name)
-                                             1
-                                             (verificar-carpetas-duplicadas name path (cdr folders))
-                                             )
+                                            (if (null? (filter (lambda (folder) (eq? (get-type-file folder) "folder")) (filter (lambda (folder) (eq? (get-path folder) path)) folders)))
+                                                0
+                                                (if
+                                                 (eq?
+                                                  (car (car (filter (lambda (folder) (eq? (get-type-file folder) "folder")) (filter (lambda (folder) (eq? (get-path folder) path)) folders))))
+                                                  name)
+                                                 1
+                                                 (verificar-carpetas-duplicadas name path (cdr folders))
+                                                 )
                                             )
-                                        ))
+                                         )
+                                        )
+  )
                                         
 
 (define md (lambda (system)
@@ -301,6 +305,74 @@
                        system
                       )
                  )))
+
+;; Cambiar de Directorio
+(define (eliminar-palabra-final path)
+  (define (eliminar-palabra-final-int parts remaining-parts)
+    (if (null? (cdr parts))
+        (string-join (reverse remaining-parts) "/")
+        (eliminar-palabra-final-int (cdr parts) (cons (car parts) remaining-parts))))
+  
+  (eliminar-palabra-final-int (string-split path "/") '()))
+
+(define change-path (lambda (originalPath newPath)
+                      (cond
+                        ((string=? originalPath "")
+                             (change-path "/" newPath))
+                        ((string=? newPath "")
+                         (if (not (eq? (string-ref originalPath 0) #\/))
+                             (string-append "/" originalPath)
+                             originalPath))
+                        ((and (eq? (string-ref newPath 0) #\.) (eq? (string-ref newPath 1) #\.))
+                         (if (eq? originalPath "/")
+                             (if (string=? newPath "..")
+                                 (change-path originalPath "")
+                                 (change-path originalPath (substring newPath 3 (string-length newPath)))
+                                 )
+                             (if (string=? newPath "..")
+                                 (change-path (eliminar-palabra-final originalPath) "")
+                                 (change-path (eliminar-palabra-final originalPath) (substring newPath 3 (string-length newPath)))
+                                 )
+                         ))
+                        ((eq? (string-ref newPath 0) #\.)
+                         (change-path originalPath (substring (substring newPath 1) 1))
+                         )
+                        (else (if (eq? originalPath "/")
+                                   (string-append originalPath newPath)
+                                   (if (not (eq? (string-ref originalPath 0) #\/))
+                                       (string-append (string-append "/" originalPath "/") newPath)
+                                       (string-append (string-append originalPath "/") newPath))
+                        ))
+                       )
+                      ))
+
+(define cd (lambda (system)
+             (lambda (path)
+               (cond
+                 ((eq? (string-ref path 0) #\/)
+                  (make-system (get-system-name system)
+                                   (get-system-usuarios system)
+                                   (get-system-drive system)
+                                   (get-system-current-user system)
+                                   (get-system-current-drive system)
+                                   path
+                                   (get-system-folder system)
+                                   (get-system-fecha-creacion system)
+                                   )
+                  )
+                 (else (make-system (get-system-name system)
+                                   (get-system-usuarios system)
+                                   (get-system-drive system)
+                                   (get-system-current-user system)
+                                   (get-system-current-drive system)
+                                   (change-path (get-system-path system) path)
+                                   (get-system-folder system)
+                                   (get-system-fecha-creacion system)
+                                   ))
+                 )
+               )
+             )
+  )
 
 ;; Script
 ;; Se crea el sistema
@@ -357,3 +429,15 @@ S19
 (define S22 ((run S21 md) "Folder2"))
 (define S23 ((run S22 md) "Folder2"))
 S23
+(define S24 ((run S23 cd) "../Folder2"))
+S24
+(define S25 ((run S24 md) "Folder2"))
+S25
+(define S26 ((run S25 cd) "Folder2"))
+S26
+(define S27 ((run S26 md) "Folder3"))
+S27
+(define S28 ((run S27 cd) "Folder3"))
+S28
+(define S29 ((run S28 cd) "../../../../Folder3"))
+S29
