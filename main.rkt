@@ -6,8 +6,8 @@
 ;; path_actual (String) x Folders (Folder)  x fecha_creacion (String) x fecha_modificación (String)
 ;; TDA Drive = letter (String list) x name (String) x folders (folder list) x capacity (String)
 ;; TDA Folder = name (String) x fecha-creación (String) x fecha-modificación (String) x user-creator (String)
-;;              x type (String) x secturity-atributes (Security) x path (String)
-;; TDA File = name (String) x extension (String) x type (String) x secturity-atributes (Security) x Contenido (String) x path (String)
+;;              x secturity-atributes (Security) x type (String) x path (String)
+;; TDA File = name (String) x extension (String) x Contenido (String) x secturity-atributes (Security) x user-creator (String) x type (String) x path (String)
 ;; TDA Security = lectura (String) x escritura (String) x oculto (String) x acceso (all / userName) (String)
 ;; Por simplicidad se omitirá el permiso de ejecución del archivo dado que no se pide en el enunciado.
 
@@ -43,8 +43,8 @@
 
 ;; Se le da forma del TDA
 (define make-file (lambda
-                      (archivo type path)
-                    (reverse (cons path (cons type archivo)))
+                      (archivo user-creator path)
+                    (reverse (cons path (cons "file" (cons user-creator archivo))))
                     ))
 
 ;; Selectores del TDA System
@@ -288,8 +288,27 @@
                                          )
                                         )
   )
-                                        
 
+;; Verifica archivos duplicados
+(define verificar-archivos-duplicados (lambda (name path files)
+                                        ;; Filtro solo las carpetas de esta ruta
+                                        (if (null? files)
+                                            0
+                                            (if (null? (filter (lambda (archivo) (eq? (get-type-file archivo) "file")) (filter (lambda (archivo) (eq? (get-path archivo) path)) files)))
+                                                0
+                                                (if
+                                                 (eq?
+                                                  (car (car (filter (lambda (archivo) (eq? (get-type-file archivo) "file")) (filter (lambda (archivo) (eq? (get-path archivo) path)) files))))
+                                                  name)
+                                                 1
+                                                 (verificar-archivos-duplicados name path (cdr files))
+                                                 )
+                                            )
+                                         )
+                                        )
+  )
+                                        
+;; Crea la carpeta
 (define md (lambda (system)
                 (lambda (name)
                   (if (eq? (verificar-carpetas-duplicadas name (get-system-path system) (get-system-folder system)) 0) 
@@ -397,6 +416,7 @@
 (define change-directory (lambda (system)
              (lambda (path)
                (cond
+                 ;; En caso de que se quiera cambiar de unidad
                  ((string=? path "")
                   (make-system (get-system-name system)
                                    (get-system-usuarios system)
@@ -411,6 +431,7 @@
                                    (get-system-fecha-creacion system)
                                    )
                   )
+                 ;; En caso de que sea una ruta directa
                  ((eq? (string-ref path 0) #\/)
                   (make-system (get-system-name system)
                                    (get-system-usuarios system)
@@ -425,6 +446,7 @@
                                    (get-system-fecha-creacion system)
                                    )
                   )
+                 ;; En el caso de que no sea una ruta directa e incluya alguna puntación o sea el nombre de la carpeta
                  (else (make-system (get-system-name system)
                                    (get-system-usuarios system)
                                    (get-system-drive system)
@@ -441,6 +463,34 @@
                )
              )
   )
+
+;; Crear un nuevo archivo
+(define add-file (lambda (system)
+                   (lambda (file)
+                     (if (eq? (verificar-archivos-duplicados (last file) (get-system-path system) (get-system-folder system)) 0) 
+                         (make-system (get-system-name system)
+                                      (get-system-usuarios system)
+                                      ;; Se obtienen todo el resto de drives y se crea nuevamente el drive modificado
+                                      (cons (get-rest-drives (get-system-drive system) null (get-system-current-drive system))
+                                            (cons (make-drive
+                                                   (get-system-current-drive system)
+                                                   (get-name-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                   (cons (make-file file (get-system-current-user system) (get-system-path system))
+                                                         (get-system-folder system))
+                                                   (get-capacity-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                   ) null)
+                                            )
+                                      (get-system-current-user system)
+                                      (get-system-current-drive system)
+                                      (get-system-path system)
+                                      ;; Se crea la carpeta nueva
+                                      (cons (make-file file (get-system-current-user system) (get-system-path system))
+                                            (get-system-folder system))
+                                      (get-system-fecha-creacion system)
+                                      )
+                         system
+                         )
+                     )))
 
 ;; Script
 ;; Se crea el sistema
@@ -504,3 +554,5 @@ S27
 S28
 (define S29 ((run S28 cd) "D:/Folder"))
 S29
+(define S30 ((run S29 add-file) (file "foo1.txt" "txt" "hello world 1")))
+S30
