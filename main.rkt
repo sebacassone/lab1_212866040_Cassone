@@ -1,9 +1,153 @@
 #lang racket
 
-(require "constructores.rkt")
-(require "selectores.rkt")
-(provide run add-drive register login logout switch-drive md cd)
+(provide system run add-drive register login logout switch-drive md cd)
 
+;; TDA System = name (String) x users (list String) x drives (drive list) x current-user (String) x current-drive (Char) x
+;; path_actual (String) x Folders (Folder)  x fecha_creacion (String) x fecha_modificación (String)
+;; TDA Drive = letter (String list) x name (String) x folders (folder list) x capacity (String)
+;; TDA Folder = name (String) x fecha-creación (String) x fecha-modificación (String) x user-creator (String)
+;;              x type (String) x secturity-atributes (Security) x path (String)
+;; TDA File = name (String) x extension (String) x type (String) x secturity-atributes (Security) x Contenido (String) x path (String)
+;; TDA Security = lectura (String) x escritura (String) x oculto (String) x acceso (all / userName) (String)
+;; Por simplicidad se omitirá el permiso de ejecución del archivo dado que no se pide en el enunciado.
+
+;; Constructor de TDA System
+;; Se inicializa el sistema
+(define system (lambda (name) (make-system name '() '() "" "" "" '() (current-seconds))))
+;; Se extrae como una función aparte el constructor del sistema ya que será utilizado por otras funciones más.
+(define make-system (lambda
+                        (name users drives current-user current-drive path folders seconds)
+                      (list name users drives current-user current-drive path folders seconds (current-seconds))
+                      ))
+
+;; Se construye una unidad para la lista de drives
+(define make-drive (lambda
+                       (letter name folders capacity) (list letter name folders capacity)))
+
+;; Se construye TDA Security
+(define make-security-atributes (lambda
+                                    (escritura lectura oculto acceso)
+                                  (list escritura lectura oculto acceso)))
+
+;; Se construye una carpeta
+(define make-folder (lambda
+                        (name user-creator path)
+                      (list name (current-seconds) (current-seconds) user-creator (make-security-atributes #\r #\w "" "all") "folder" path)
+                      ))
+
+;; Se constuye un archivo
+;; TDA File = name (String) x extension (String) x Contenido (String) x secturity-atributes (Security) x type (String) x path (String)
+(define file (lambda
+                 (name extension content . security-atributes)
+               (list security-atributes content extension name)))
+
+;; Se le da forma del TDA
+(define make-file (lambda
+                      (archivo type path)
+                    (reverse (cons path (cons type archivo)))
+                    ))
+
+;; Selectores del TDA System
+;; Obtener de la lista de usuarios el usuario actual
+(define get-user (lambda
+                     (lista_usuarios user)
+                   (if (eq? (car lista_usuarios) user)
+                       (car lista_usuarios)
+                       (get-user (cdr lista_usuarios) user)
+                       )
+                   ))
+(define get-current-user (lambda (system user) (get-user cadr user)))
+
+;; Se obtiene el nombre del sistema, usuarios, drives, current-user, current-drive, fecha-creación
+(define get-system-name (lambda (sistema) (list-ref sistema 0)))
+(define get-system-usuarios (lambda (sistema) (list-ref sistema 1)))
+(define get-system-drive (lambda (sistema) (list-ref sistema 2)))
+(define get-system-current-user (lambda (sistema) (list-ref sistema 3)))
+(define get-system-current-drive (lambda (sistema) (list-ref sistema 4)))
+(define get-system-path (lambda (sistema) (list-ref sistema 5)))
+(define get-system-folder (lambda (sistema) (list-ref sistema 6)))
+(define get-system-fecha-creacion (lambda (sistema) (list-ref sistema 7)))
+
+;; Obtener todas las letras existentes de los drives
+(define get-letters-all-drives(
+                               lambda (sistema)
+                                (define get-letters-all-drives-int (
+                                                                    lambda (sistema letras)
+                                                                     (if (null? (get-system-drive sistema)) letras
+                                                                         (get-letters-all-drives-int
+                                                                          (make-system (get-system-name sistema)
+                                                                                       (get-system-usuarios sistema)
+                                                                                       (cdr (get-system-drive sistema))
+                                                                                       (get-system-current-user sistema)
+                                                                                       (get-system-current-drive sistema)
+                                                                                       (get-system-path sistema)
+                                                                                       (get-system-folder sistema)
+                                                                                       (get-system-fecha-creacion sistema))
+                                                                          (cons (car (car (get-system-drive sistema))) letras)
+                                                                          )
+                                                                         )
+                                                                     ))
+                                (get-letters-all-drives-int sistema null)
+                                ))
+
+;; Obtiene las carpetas guardadas en el drive con la letra letter (usado en switch drive)
+(define get-system-folder-drive (lambda (drives letter)
+                                  (if (eq? letter (car (car drives)))
+                                      (list-ref (car drives) 2)
+                                      (get-system-folder-drive (cdr drives) letter)
+                                      )
+                                  ))
+
+;; Obtiene la lista de drives sin contar al drive que contiene la letra letter (usado en mkdir)
+(define get-rest-drives (lambda (drives rest-drives letter)
+                          (if (null? drives)
+                              rest-drives
+                              (if (eq? letter (car (car drives)))
+                                  (get-rest-drives (cdr drives) rest-drives letter)
+                                  (get-rest-drives (cdr drives) (car drives) letter)
+                                  )
+                              )
+                          ))
+
+;; Obtiene un drive en especifico en una lista de drives por medio de letter 
+(define get-drive (lambda (drives letter)
+                    (if (eq? (car (car drives)) letter)
+                        (car drives)
+                        (get-drive (cdr drives) letter)
+                        )
+                    ))
+
+;; Obtiene el nombre del drive
+(define get-name-drive (lambda (drive)
+                         (list-ref drive 1)
+                         ))
+
+;; Obtiene la capacidad del drive
+(define get-capacity-drive (lambda (drive)
+                             (list-ref drive 3)))
+
+;; Obtiene el nombre de una carpeta
+(define get-name-folder (lambda (folder)
+                          (list-ref folder 0)))
+ 
+;; Obtener path de una carpeta
+(define get-path (lambda (folder)
+                   (last folder)
+                   ))
+
+;; Obtiene que tipo de archivo es
+(define get-type-file (lambda (file-list)
+                        (cond
+                          ((null? (cddr file-list)) (car file-list))
+                          (else (get-type-file (cdr file-list)))
+                          )
+                        ))
+
+;; Esta función obtiene todas las rutas existentes
+(define get-all-existing-paths (lambda (folders)
+                                 (cons "/" (map (lambda (folder) (string-append (get-path folder) (if (eq? (get-path folder) "/") (get-name-folder folder) (string-append "/" (get-name-folder folder))))) (filter (lambda (folder) (eq? (get-type-file folder) "folder")) folders)))
+                                 ))
+                                 
 ;; Obtener el tipo 
 
 ;; Otras funciones de los TDA
@@ -248,18 +392,35 @@
                    ((change-directory system) path)
                    )
                )))
-                       
+                 
 ;; Esta función finalmente hace el cambio de path
 (define change-directory (lambda (system)
              (lambda (path)
                (cond
+                 ((string=? path "")
+                  (make-system (get-system-name system)
+                                   (get-system-usuarios system)
+                                   (get-system-drive system)
+                                   (get-system-current-user system)
+                                   (get-system-current-drive system)
+                                   (if (member path (get-all-existing-paths (get-system-folder system)))
+                                       path
+                                       (get-system-path system)
+                                       )
+                                   (get-system-folder system)
+                                   (get-system-fecha-creacion system)
+                                   )
+                  )
                  ((eq? (string-ref path 0) #\/)
                   (make-system (get-system-name system)
                                    (get-system-usuarios system)
                                    (get-system-drive system)
                                    (get-system-current-user system)
                                    (get-system-current-drive system)
-                                   (verificar-existencia-path path)
+                                   (if (member path (get-all-existing-paths (get-system-folder system)))
+                                       path
+                                       (get-system-path system)
+                                       )
                                    (get-system-folder system)
                                    (get-system-fecha-creacion system)
                                    )
@@ -269,7 +430,10 @@
                                    (get-system-drive system)
                                    (get-system-current-user system)
                                    (get-system-current-drive system)
-                                   (verificar-existencia-path (change-path (get-system-path system) path))
+                                   (if (member (change-path (get-system-path system) path) (get-all-existing-paths (get-system-folder system)))
+                                       (change-path (get-system-path system) path)
+                                       (get-system-path system)
+                                       )
                                    (get-system-folder system)
                                    (get-system-fecha-creacion system)
                                    ))
@@ -277,3 +441,66 @@
                )
              )
   )
+
+;; Script
+;; Se crea el sistema
+(define S0 (system "newSystem"))
+S0
+;; Se añaden unidades a S0
+;; Añadiendo unidades. Incluye caso S2 que intenta añadir unidad con una letra que ya existe
+(define S1 ((run S0 add-drive) #\C "SO" 1000))
+(define S2 ((run S1 add-drive) #\C "SO1" 3000))
+(define S3 ((run S2 add-drive) #\D "Util" 2000))
+S3
+
+;; Añadiendo usuarios. Incluye caso S6 que intenta registrar usuario duplicado
+(define S4 ((run S3 register) "user1"))
+(define S5 ((run S4 register) "user1"))
+(define S6 ((run S5 register) "user2"))
+S6
+
+;; iniciando sesión con usuarios. Incluye caso S8 que intenta iniciar sesión con user2 sin antes haber salido con user1
+(define S7 ((run S6 login) "user1"))
+S7
+(define S8 ((run S7 login) "user2"))
+S8
+
+;; cerrando sesión user1 e iniciando con user2
+(define S9 (run S8 logout))
+S9
+(define S10 ((run S9 login) "user2"))
+S10
+
+;; Cambios de unidad, incluyendo unidad inexistente K
+(define S11 ((run S10 switch-drive) #\K))
+S11
+(define S12 ((run S11 switch-drive) #\C))
+S12
+(define S13 ((run S12 switch-drive) #\D))
+S13
+
+;; Crea carpetas
+(define S14 ((run S13 md) "Folder"))
+(define S15 ((run S14 switch-drive) #\C))
+(define S16 ((run S15 switch-drive) #\D))
+(define S17 ((run S16 md) "Folder"))
+(define S18 ((run S17 md) "Folder2"))
+(define S19 ((run S18 md) "Folder2"))
+(define S20 ((run S19 switch-drive) #\C))
+(define S21 ((run S20 md) "Folder"))
+(define S22 ((run S21 md) "Folder2"))
+S22
+(define S23 ((run S22 md) "Folder2"))
+S23
+(define S24 ((run S23 cd) "../Folder2"))
+S24
+(define S25 ((run S24 md) "Folder2"))
+S25
+(define S26 ((run S25 cd) "Folder2"))
+S26
+(define S27 ((run S26 md) "Folder3"))
+S27
+(define S28 ((run S27 cd) "Folder3"))
+S28
+(define S29 ((run S28 cd) "D:/Folder"))
+S29

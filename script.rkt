@@ -1,7 +1,6 @@
 #lang racket
 
 (require "main.rkt")
-(require "constructores.rkt")
 
 ;; Script
 ;; Se crea el sistema
@@ -50,11 +49,13 @@ S13
 (define S20 ((run S19 switch-drive) #\C))
 (define S21 ((run S20 md) "Folder"))
 (define S22 ((run S21 md) "Folder2"))
+S22
 (define S23 ((run S22 md) "Folder2"))
+S23
 (define S24 ((run S23 cd) "../Folder2"))
+S24
 (define S25 ((run S24 md) "Folder2"))
 (define S26 ((run S25 cd) "Folder2"))
 (define S27 ((run S26 md) "Folder3"))
 (define S28 ((run S27 cd) "Folder3"))
 (define S29 ((run S28 cd) "E:/Folder8/Folder12"))
-S29
