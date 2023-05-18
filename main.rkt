@@ -1,6 +1,6 @@
 #lang racket
 
-(provide system run add-drive register login logout switch-drive md cd)
+(provide system run add-drive register login logout switch-drive md cd add-file)
 
 ;; TDA System = name (String) x users (list String) x drives (drive list) x current-user (String) x current-drive (Char) x
 ;; path_actual (String) x Folders (Folder)  x fecha_creacion (String) x fecha_modificación (String)
@@ -32,7 +32,7 @@
 ;; Se construye una carpeta
 (define make-folder (lambda
                         (name user-creator path)
-                      (list name (current-seconds) (current-seconds) user-creator (make-security-atributes #\r #\w "" "all") "folder" path)
+                      (list name (current-seconds) (current-seconds) (make-security-atributes #\r #\w "" "all") user-creator "folder" path)
                       ))
 
 ;; Se constuye un archivo
@@ -275,33 +275,14 @@
                                         ;; Filtro solo las carpetas de esta ruta
                                         (if (null? folders)
                                             0
-                                            (if (null? (filter (lambda (folder) (eq? (get-type-file folder) "folder")) (filter (lambda (folder) (eq? (get-path folder) path)) folders)))
+                                            (if (null? (filter (lambda (folder) (eq? (get-path folder) path)) folders))
                                                 0
                                                 (if
                                                  (eq?
-                                                  (car (car (filter (lambda (folder) (eq? (get-type-file folder) "folder")) (filter (lambda (folder) (eq? (get-path folder) path)) folders))))
+                                                  (car (car (filter (lambda (folder) (eq? (get-path folder) path)) folders)))
                                                   name)
                                                  1
                                                  (verificar-carpetas-duplicadas name path (cdr folders))
-                                                 )
-                                            )
-                                         )
-                                        )
-  )
-
-;; Verifica archivos duplicados
-(define verificar-archivos-duplicados (lambda (name path files)
-                                        ;; Filtro solo las carpetas de esta ruta
-                                        (if (null? files)
-                                            0
-                                            (if (null? (filter (lambda (archivo) (eq? (get-type-file archivo) "file")) (filter (lambda (archivo) (eq? (get-path archivo) path)) files)))
-                                                0
-                                                (if
-                                                 (eq?
-                                                  (car (car (filter (lambda (archivo) (eq? (get-type-file archivo) "file")) (filter (lambda (archivo) (eq? (get-path archivo) path)) files))))
-                                                  name)
-                                                 1
-                                                 (verificar-archivos-duplicados name path (cdr files))
                                                  )
                                             )
                                          )
@@ -467,7 +448,7 @@
 ;; Crear un nuevo archivo
 (define add-file (lambda (system)
                    (lambda (file)
-                     (if (eq? (verificar-archivos-duplicados (last file) (get-system-path system) (get-system-folder system)) 0) 
+                     (if (eq? (verificar-carpetas-duplicadas (last file) (get-system-path system) (get-system-folder system)) 0) 
                          (make-system (get-system-name system)
                                       (get-system-usuarios system)
                                       ;; Se obtienen todo el resto de drives y se crea nuevamente el drive modificado
@@ -491,6 +472,12 @@
                          system
                          )
                      )))
+
+;; Se crea el requerimiento de eliminar un archivo o una carpeta con archivos en un mismo directorio
+;; Casos:
+;; El primer caso es que sea un archivo
+;; El segundo que sean varios archivos según un patrón
+;; El tercero es que sea una carpeta y elimina todo el contenido en él
 
 ;; Script
 ;; Se crea el sistema
@@ -556,3 +543,7 @@ S28
 S29
 (define S30 ((run S29 add-file) (file "foo1.txt" "txt" "hello world 1")))
 S30
+(define S31 ((run S30 cd) "../"))
+S31
+(define S32 ((run S31 add-file) (file "Folder" "txt" "hello world 1")))
+S32
