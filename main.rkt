@@ -496,7 +496,7 @@
 
 ;; Obtener todos los subdirectorios de una ruta
 (define get-subdirectory-of-folder (lambda (path paths)
-                                     (filter (lambda (palabra) (string-contains? palabra path)) paths)
+                                     (cons path (filter (lambda (palabra) (string-contains? palabra (if (string=? path "/") path (string-append path "/")))) paths))
                                      ))
 
 ;; Comienza a recorrer los subdirectorios a eliminar
@@ -799,7 +799,29 @@
                   )
                  )
                 )))
-                 
+
+;; Se crea requerimiento de remover directorio vacío (simil a rmdir en linux)
+(define rd (lambda (system)
+             (lambda (folderName)
+               (if
+                 ;; Esto es solo el condicional, se obtiene la ruta del archivo y se verifica que exista como path, osea si es carpeta
+                 (member
+                 ((get-path-complete system) folderName)
+                 (get-all-existing-paths (get-system-folder system)
+                                         )
+                 )
+                 (if (null?
+                      (filter
+                       (lambda (archivo)
+                         (string=? (get-path archivo) ((get-path-complete system) folderName)))
+                       (get-system-folder system))
+                      )
+                     ((delete-folder system) ((get-path-complete system) folderName))
+                     system
+                     )
+                 system)
+               )))
+               
 
 ;; Script
 ;; Se crea el sistema
@@ -902,3 +924,13 @@ S47
 S48
 (define S49 ((run S48 del) "hola.*"))
 S49
+(define S50 ((run S49 rd) "hola"))
+S50
+(define S51 ((run S50 cd) "home seba"))
+S51
+(define S52 ((run S51 add-file) (file "foo1.txt" "txt" "hello world 1")))
+S52
+(define S53 ((run S52 cd) "../"))
+S53
+(define S54 ((run S53 rd) "home"))
+S54
