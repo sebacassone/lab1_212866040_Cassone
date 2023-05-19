@@ -147,6 +147,10 @@
 (define get-all-existing-paths (lambda (folders)
                                  (cons "/" (map (lambda (folder) (string-append (get-path folder) (if (eq? (get-path folder) "/") (get-name-folder folder) (string-append "/" (get-name-folder folder))))) (filter (lambda (folder) (eq? (get-type-file folder) "folder")) folders)))
                                  ))
+
+;; Obtiene la extensión de un archivo
+(define get-extension-file (lambda (archivo)
+                                    (list-ref archivo 1)))
                                  
 ;; Obtener el tipo 
 
@@ -377,19 +381,23 @@
 ;; Esta función se encarga de hacer el cambio de unidad previo a hacer el cambio de path
 (define cd (lambda (system)
              (lambda (path)
-               ;; Si el path tiene la forma "X:/", verifica si la unidad X existe y si X no es la unidad actual se hace el cambio
-               ;; de unidad
-               (if (and (eq? (string-ref path 1) #\:) (eq? (string-ref path 2) #\/))
-                   ;; Se verifica que la unidad existe, si existe se verifica si es la unidad actual, de lo contario no hace nada
-                   (if (memq (string-ref path 0) (get-letters-all-drives system))
-                       ;; Se verifica si la unidad pedida es la actual o no
-                       (if (eq? (string-ref path 0) (get-system-current-drive system))
-                           ((change-directory system) (substring path 3 (string-length path)))
-                           ((change-directory ((switch-drive system) (string-ref path 0))) (substring path 3 (string-length path)))
+               ;; Si solo se quiere volver a root
+               (if (string=? "/" path)
+                   ((change-directory system) "/")
+                   ;; Si el path tiene la forma "X:/", verifica si la unidad X existe y si X no es la unidad actual se hace el cambio
+                   ;; de unidad
+                   (if (and (eq? (string-ref path 1) #\:) (eq? (string-ref path 2) #\/))
+                       ;; Se verifica que la unidad existe, si existe se verifica si es la unidad actual, de lo contario no hace nada
+                       (if (memq (string-ref path 0) (get-letters-all-drives system))
+                           ;; Se verifica si la unidad pedida es la actual o no
+                           (if (eq? (string-ref path 0) (get-system-current-drive system))
+                               ((change-directory system) (substring path 3 (string-length path)))
+                               ((change-directory ((switch-drive system) (string-ref path 0))) (substring path 3 (string-length path)))
+                               )
+                           system
                            )
-                       system
+                       ((change-directory system) path)
                        )
-                   ((change-directory system) path)
                    )
                )))
                  
@@ -603,17 +611,6 @@
                                       (get-system-current-user system)
                                       (get-system-current-drive system)
                                       (get-system-path system)
-                                      ;; Se crea la carpeta nueva
-                                      ;; Se hace un filtro para obtener todos los archivos menos los que estén dentro de la carpeta
-                                      (filter
-                                       ;; Se filtra la carpeta
-                                       (lambda (carpeta)
-                                         (not (string=?
-                                               ((get-path-complete system) fileName)
-                                               (string-append (get-path carpeta) (get-name-folder carpeta))
-                                               )
-                                              )
-                                         )     
                                        ;; Se filtra a todos los archivos que tengan el path de la carpeta que se quiere eliminar
                                        (filter
                                         ;; Se filtra la carpeta
@@ -625,13 +622,155 @@
                                                )
                                           )     
                                         (get-system-folder system)
-                                        ))
+                                        )
                                       (get-system-fecha-creacion system)
                                       )
                             system
                             )
                         )))
-                        
+
+;; Se eliminan los archivos obtenidos del filtro en set-files
+(define delete-files-in-set-files
+  (lambda (system)
+    (lambda (drive filesForDelete)
+      (if (null? filesForDelete)
+          drive
+          ((delete-files-in-set-files system) (filter
+                                               ;; Se filtra la carpeta
+                                               (lambda (archivo)
+                                                 (not (equal?
+                                                       (car filesForDelete)
+                                                       archivo
+                                                       )
+                                                      )
+                                                 )     
+                                               drive
+                                               )
+                                              (cdr filesForDelete))
+          )
+      )))
+
+;; Se elimina con el asterisco
+(define delete-set-files (lambda (system)
+                           (lambda (fileName)
+                             (cond
+                               ((string=? fileName "*.*")
+                                (make-system (get-system-name system)
+                                       (get-system-usuarios system)
+                                      ;; Se obtienen todo el resto de drives y se crea nuevamente el drive modificado
+                                      (cons (get-rest-drives (get-system-drive system) null (get-system-current-drive system))
+                                            (cons (make-drive
+                                                   (get-system-current-drive system)
+                                                   (get-name-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                   ;; Se hace un filtro para obtener todos los archivos menos los que estén dentro de la carpeta
+                                                   (delete-all-files (get-system-folder system) (get-subdirectory-of-folder (get-system-path system) (get-all-existing-paths (get-system-folder system)))) 
+                                                   (get-capacity-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                   ) null)
+                                            )
+                                      (get-system-current-user system)
+                                      (get-system-current-drive system)
+                                      (get-system-path system)
+                                       ;; Se filtra a todos los archivos que tengan el path de la carpeta que se quiere eliminar
+                                      (delete-all-files (get-system-folder system) (get-subdirectory-of-folder (get-system-path system) (get-all-existing-paths (get-system-folder system)))) 
+                                      (get-system-fecha-creacion system)
+                                      )
+                                )
+                               ((char=? (string-ref fileName (- (string-length fileName) 1)) #\*)
+                                (make-system (get-system-name system)
+                                       (get-system-usuarios system)
+                                      ;; Se obtienen todo el resto de drives y se crea nuevamente el drive modificado
+                                      (cons (get-rest-drives (get-system-drive system) null (get-system-current-drive system))
+                                            (cons (make-drive
+                                                   (get-system-current-drive system)
+                                                   (get-name-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                   ;; Se hace un filtro para obtener todos los archivos menos los que estén dentro de la carpeta
+                                                   ((delete-files-in-set-files system)
+                                                    (get-system-folder system)
+                                                   (filter
+                                                    (lambda (archivo)
+                                                      (and
+                                                       (string-contains? (get-name-folder archivo) (substring fileName 0 (- (string-length fileName) 1)))
+                                                       (string=? (get-type-file archivo) "file")))
+                                                    (filter
+                                                     (lambda (archivo) (string=? (get-path archivo) (get-system-path system)))
+                                                     (get-system-folder system)))
+                                                   )
+                                                   (get-capacity-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                   ) null)
+                                            )
+                                      (get-system-current-user system)
+                                      (get-system-current-drive system)
+                                      (get-system-path system)
+                                       ;; Se filtra a todos los archivos que tengan el path de la carpeta que se quiere eliminar
+                                      ((delete-files-in-set-files system)
+                                                    (get-system-folder system)
+                                                   (filter
+                                                    (lambda (archivo)
+                                                      (and
+                                                       (string-contains? (get-name-folder archivo) (substring fileName 0 (- (string-length fileName) 1)))
+                                                       (string=? (get-type-file archivo) "file")))
+                                                    (filter
+                                                     (lambda (archivo) (string=? (get-path archivo) (get-system-path system)))
+                                                     (get-system-folder system)))
+                                                   )
+                                      (get-system-fecha-creacion system)
+                                      )
+                                )
+                               (else (make-system (get-system-name system)
+                                       (get-system-usuarios system)
+                                      ;; Se obtienen todo el resto de drives y se crea nuevamente el drive modificado
+                                      (cons (get-rest-drives (get-system-drive system) null (get-system-current-drive system))
+                                            (cons (make-drive
+                                                   (get-system-current-drive system)
+                                                   (get-name-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                   ;; Se hace un filtro para obtener todos los archivos menos los que estén dentro de la carpeta
+                                                  ((delete-files-in-set-files system)
+                                                    (get-system-folder system)
+                                                    (filter
+                                                     (lambda (archivo3)
+                                                       (string=? (get-extension-file archivo3) (cadr (string-split fileName "*.")))
+                                                       )
+                                                     (filter
+                                                      (lambda (archivo2)
+                                                        (and
+                                                         (string-contains? (get-name-folder archivo2) (car (string-split fileName "*.")))
+                                                         (string=? (get-type-file archivo2) "file")
+                                                         ))
+                                                      (filter
+                                                       (lambda (archivo) (string=? (get-path archivo) (get-system-path system)))
+                                                       (get-system-folder system))
+                                                      )
+                                                     )
+                                                   )
+                                                   (get-capacity-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                   ) null)
+                                            )
+                                      (get-system-current-user system)
+                                      (get-system-current-drive system)
+                                      (get-system-path system)
+                                       ;; Se filtra a todos los archivos que tengan el path de la carpeta que se quiere eliminar
+                                      ((delete-files-in-set-files system)
+                                                    (get-system-folder system)
+                                                    (filter
+                                                     (lambda (archivo3)
+                                                       (string=? (get-extension-file archivo3) (cadr (string-split fileName "*.")))
+                                                       )
+                                                     (filter
+                                                      (lambda (archivo2)
+                                                        (and
+                                                         (string-contains? (get-name-folder archivo2) (car (string-split fileName "*.")))
+                                                         (string=? (get-type-file archivo2) "file")
+                                                         ))
+                                                      (filter
+                                                       (lambda (archivo) (string=? (get-path archivo) (get-system-path system)))
+                                                       (get-system-folder system))
+                                                      )
+                                                     )
+                                                   )
+                                      (get-system-fecha-creacion system)
+                                      ))
+                               )
+                             )))
 
 ;; Se crea el requerimiento de eliminar un archivo o una carpeta con archivos en un mismo directorio
 ;; Casos:
@@ -654,7 +793,7 @@
                  ;; un archivo o hace uso de * con algún acrónimo para eliminar
                  ;; las palabras que comiencen como f o feo, cosas así.
                  (if (contiene-asterisco fileName)
-                     system
+                     ((delete-set-files system) fileName)
                      ;; ((delete-set-files system) fileName)
                      ((delete-file system) fileName)
                   )
@@ -746,5 +885,20 @@ S38
 S39
 (define S40 ((run S39 del) "foo2.txt"))
 S40
-(define S41 ((run S40 del) "/"))
+(define S41 ((run S40 del) "*.*"))
 S41
+(define S42 ((run S41 cd) "/"))
+S42
+(define S43 ((run S42 del) "*.*"))
+S43
+(define S44 ((run S43 md) "home"))
+S44
+(define S45 ((run S44 md) "home seba"))
+S45
+(define S46 ((run S45 add-file) (file "hola.txt" "txt" "hello world 1")))
+(define S47 ((run S46 add-file) (file "hola.txz" "txz" "hello world 1")))
+S47
+(define S48 ((run S47 md) "hola"))
+S48
+(define S49 ((run S48 del) "hola.*"))
+S49
