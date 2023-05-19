@@ -473,11 +473,163 @@
                          )
                      )))
 
+;; Obtiene el path completo de un archivo para verificar que sea una carpeta válida
+(define get-path-complete (lambda (system)
+                            (lambda (fileName)
+                              (if (eq? (string-ref fileName 0) #\/) ;; Si es una ruta
+                                  fileName
+                                  ;; Si fileName no es una ruta entonces se trata de una carpeta local
+                                  (if (eq? (get-system-path system) "/") 
+                                      (string-append (get-system-path system) fileName) ;; Si la ruta actual es root se une el nombre del archivo
+                                      (string-append (get-system-path system) (string-append "/" fileName)) ;; Si no está en root se une con un /
+                                      )
+                                  )
+                              )))
+
+;; Obtener todos los subdirectorios de una ruta
+(define get-subdirectory-of-folder (lambda (path paths)
+                                     (filter (lambda (palabra) (string-contains? palabra path)) paths)
+                                     ))
+
+;; Comienza a recorrer los subdirectorios a eliminar
+(define delete-all-files (lambda (files subdirectories)
+                           (if (null? subdirectories)
+                               files
+                               (delete-all-files
+                                ;; Se hace un filtro para obtener todos los archivos menos los que estén dentro de la carpeta
+                                      (filter
+                                       ;; Se filtra la carpeta
+                                       (lambda (carpeta)
+                                         (not (string=?
+                                               (car subdirectories)
+                                               (string-append (get-path carpeta) (get-name-folder carpeta))
+                                               )
+                                              )
+                                         )     
+                                       ;; Se filtra a todos los archivos que tengan el path de la carpeta que se quiere eliminar
+                                       (filter
+                                        (lambda (archivo)
+                                          (not (string=?
+                                                (car subdirectories)
+                                                (get-path archivo)
+                                                )))
+                                        files
+                                        ))
+                                      (cdr subdirectories))
+                               )
+                           ))
+                           
+
+;; Se encarga de eliminar una carpeta en un drive
+(define delete-folder (lambda (system)
+                        (lambda (path)
+                          (make-system (get-system-name system)
+                                       (get-system-usuarios system)
+                                      ;; Se obtienen todo el resto de drives y se crea nuevamente el drive modificado
+                                      (cons (get-rest-drives (get-system-drive system) null (get-system-current-drive system))
+                                            (cons (make-drive
+                                                   (get-system-current-drive system)
+                                                   (get-name-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                   ;; Se hace un filtro para obtener todos los archivos menos los que estén dentro de la carpeta
+                                                   (delete-all-files (get-system-folder system) (get-subdirectory-of-folder path (get-all-existing-paths (get-system-folder system)))) 
+                                                   (get-capacity-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                   ) null)
+                                            )
+                                      (get-system-current-user system)
+                                      (get-system-current-drive system)
+                                      (get-system-path system)
+                                      ;; Se crea la carpeta nueva
+                                      ;; Se hace un filtro para obtener todos los archivos menos los que estén dentro de la carpeta
+                                      (delete-all-files (get-system-folder system) (get-subdirectory-of-folder path (get-all-existing-paths (get-system-folder system)))) 
+                                      (get-system-fecha-creacion system)
+                                      )
+                          )))
+
+;; Se crea esta función para verificar si contiene asteriscos.
+(define contiene-asterisco (lambda (fileName)
+                             (string-contains? fileName "*")
+                             ))
+
+;; Se hace función para eliminar
+(define delete-file (lambda (system)
+                      (lambda (fileName)
+                        (make-system (get-system-name system)
+                                       (get-system-usuarios system)
+                                      ;; Se obtienen todo el resto de drives y se crea nuevamente el drive modificado
+                                      (cons (get-rest-drives (get-system-drive system) null (get-system-current-drive system))
+                                            (cons (make-drive
+                                                   (get-system-current-drive system)
+                                                   (get-name-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                   ;; Se hace un filtro para obtener todos los archivos menos los que estén dentro de la carpeta
+                                                   (filter
+                                                    ;; Se filtra la carpeta
+                                                    (lambda (archivo)
+                                                      (not (string=?
+                                                            ((get-path-complete system) fileName)
+                                                            (string-append (get-path archivo) (get-name-folder archivo))
+                                                            )
+                                                           )
+                                                      )     
+                                                     (get-system-folder system)
+                                                     )
+                                                   (get-capacity-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                   ) null)
+                                            )
+                                      (get-system-current-user system)
+                                      (get-system-current-drive system)
+                                      (get-system-path system)
+                                      ;; Se crea la carpeta nueva
+                                      ;; Se hace un filtro para obtener todos los archivos menos los que estén dentro de la carpeta
+                                      (filter
+                                       ;; Se filtra la carpeta
+                                       (lambda (carpeta)
+                                         (not (string=?
+                                               ((get-path-complete system) fileName)
+                                               (string-append (get-path carpeta) (get-name-folder carpeta))
+                                               )
+                                              )
+                                         )     
+                                       ;; Se filtra a todos los archivos que tengan el path de la carpeta que se quiere eliminar
+                                       (filter
+                                        (lambda (archivo)
+                                          (not (string=?
+                                                ((get-path-complete system) fileName)
+                                                (get-path archivo)
+                                                )))
+                                        (get-system-folder system)
+                                        ))
+                                      (get-system-fecha-creacion system)
+                                      ))))
+                        
+
 ;; Se crea el requerimiento de eliminar un archivo o una carpeta con archivos en un mismo directorio
 ;; Casos:
-;; El primer caso es que sea un archivo
-;; El segundo que sean varios archivos según un patrón
-;; El tercero es que sea una carpeta y elimina todo el contenido en él
+;; El primer es que sea una carpeta y elimina todo el contenido en él
+;; El segundo caso es que sea un archivo
+;; El tercero que sean varios archivos según un patrón
+(define del (lambda (system)
+              (lambda (fileName)
+                ;; Si la carpeta existe y es efectivamente una carpeta
+                (if
+                 ;; Esto es solo el condicional, se obtiene la ruta del archivo y se verifica que exista como path, osea si es carpeta
+                 (member
+                 ((get-path-complete system) fileName)
+                 (get-all-existing-paths (get-system-folder system)
+                                         )
+                 )
+                 ;; En caso de que sea una carpeta
+                 ((delete-folder system) ((get-path-complete system) fileName))
+                 ;; Ahora se distingue entre los casos que se elimina solo
+                 ;; un archivo o hace uso de * con algún acrónimo para eliminar
+                 ;; las palabras que comiencen como f o feo, cosas así.
+                 (if (contiene-asterisco fileName)
+                     system
+                     ;; ((delete-set-files system) fileName)
+                     ((delete-file system) fileName)
+                  )
+                 )
+                )))
+                 
 
 ;; Script
 ;; Se crea el sistema
@@ -547,3 +699,13 @@ S30
 S31
 (define S32 ((run S31 add-file) (file "Folder" "txt" "hello world 1")))
 S32
+(define S33 ((run S32 cd) "Folder2"))
+S33
+(define S34 ((run S33 add-file) (file "foofighters.txt" "txt" "hello world 1")))
+S34
+(define S35 ((run S34 md) "Folder32"))
+S35
+(define S36 ((run S35 cd) "../"))
+S36
+(define S37 ((run S36 del) "/Folder2"))
+S37
