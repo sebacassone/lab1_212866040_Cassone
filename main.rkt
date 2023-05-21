@@ -48,6 +48,17 @@
                     ))
 
 ;; Selectores del TDA System
+(define get-file-name (lambda (archivo)
+                        (list-ref archivo 0)))
+
+(define get-file-extension (lambda (archivo)
+                             (list-ref archivo 1)))
+
+(define get-file-content (lambda (archivo)
+                                (list-ref archivo 2)))
+
+(define get-file-security-atributes (lambda (archivo)
+                           (list-ref archivo 3)))
 ;; Obtener de la lista de usuarios el usuario actual
 (define get-user (lambda
                      (lista_usuarios user)
@@ -826,10 +837,7 @@
                                         (filter
                                          (lambda
                                              (archivo)
-                                           (and
-                                            (eq? path (get-path archivo))
-                                            (eq? source (get-name-folder archivo))
-                                            )
+                                            (eq? source (get-name-folder archivo))  
                                            )
                                          drive
                                          )
@@ -837,7 +845,7 @@
 
 ;; Función para modificar el path de un archivo
 (define cambiar-path-archivo (lambda (archivo user path)
-                               (make-file archivo user path)
+                               (make-file (file (get-file-name archivo) (get-file-extension archivo) (get-file-content archivo) (get-file-security-atributes archivo)) user path)
                                ))
                                
 
@@ -916,29 +924,29 @@
                   (null? (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))
                  system
                  ;; Verifica que la letra actual es igual al la del targetPath si corresponde
-                 (if (eq? (string-ref targetPath 0) (get-system-current-drive system))
+                 (if (equal? (string-ref targetPath 0) (get-system-current-drive system))
                       ;; Se verifica que targetPath sea una ruta válida
                      (if
-                      (member (substring targetPath 3 (string-length targetPath)) (get-all-existing-paths (get-system-folder system)))
+                      (member (substring targetPath 2 (string-length targetPath)) (get-all-existing-paths (get-system-folder system)))
                       ;; Si lo es, verifica que al insertar el archivo en en la ruta deseada no sea duplicado
                       (if
-                       (eq? (verificar-carpetas-duplicadas source (substring targetPath 3 (string-length targetPath)) (get-system-folder system)) 0)
+                       (eq? (verificar-carpetas-duplicadas source (substring targetPath 2 (string-length targetPath)) (get-system-folder system)) 0)
                        (if
-                        (string=? (get-type-file (get-file-in-current-directory (get-system-folder system) source (get-system-path system))) "folder")
-                           ((insertar-archivo system) (cambiar-path-carpetas (get-all-files-in-subdirectories (get-system-folder system) (get-subdirectory-of-folder source (get-all-existing-paths (get-system-folder system)))) targetPath))
-                           ((insertar-archivo system) (cambiar-path-archivo (get-file-in-current-directory (get-system-folder system) source (get-system-path system)) (get-current-user system) targetPath))
+                        (equal? (get-type-file (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))) "folder")
+                           ((insertar-archivo system) (cambiar-path-carpetas (get-all-files-in-subdirectories (get-system-folder system) (get-subdirectory-of-folder source (get-all-existing-paths (get-system-folder system)))) (substring targetPath 2 (string-length targetPath))))
+                           ((insertar-archivo system) (cambiar-path-archivo (get-file-in-current-directory (get-system-folder system) source (get-system-path system)) (get-system-current-user system) (substring targetPath 2 (string-length targetPath))))
                            )
                        system
                        )
                       system
                       )
                      (if
-                      (member (substring targetPath 3 (string-length targetPath)) (get-all-existing-paths (get-system-folder ((switch-drive system) (string-ref targetPath 0)))))
+                      (member (substring targetPath 2 (string-length targetPath)) (get-all-existing-paths (get-system-folder ((switch-drive system) (string-ref targetPath 0)))))
                       ;; Si lo es, verifica que al insertar el archivo en en la ruta deseada no sea duplicado
                       (if
-                       (eq? (verificar-carpetas-duplicadas source (substring targetPath 3 (string-length targetPath)) (get-system-folder ((switch-drive system) (string-ref targetPath 0)))) 0)
+                       (eq? (verificar-carpetas-duplicadas source (substring targetPath 2 (string-length targetPath)) (get-system-folder ((switch-drive system) (string-ref targetPath 0)))) 0)
                        (if
-                        (string=? (get-type-file (get-file-in-current-directory (get-system-folder system) source (get-system-path system))) "folder")
+                        (equal? (get-type-file (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))) "folder")
                            ((insertar-archivo ((switch-drive system) (string-ref targetPath 0))) (cambiar-path-carpetas (get-all-files-in-subdirectories (get-system-folder system) (get-subdirectory-of-folder source (get-all-existing-paths (get-system-folder system)))) targetPath))
                            ((insertar-archivo ((switch-drive system) (string-ref targetPath 0))) (cambiar-path-archivo (get-file-in-current-directory (get-system-folder system) source (get-system-path system)) (get-current-user system) targetPath))
                            )
@@ -954,7 +962,7 @@
 (define copy (lambda (system)
                (lambda (source path)
                  (if (string=? "/" path)
-                   ((cp system) source "/")
+                   ((cp system) source (string-append (list->string (list (get-system-current-drive system))) ":" "/"))
                    ;; Si el path tiene la forma "X:/", verifica si la unidad X existe y si X no es la unidad actual se hace el cambio
                    ;; de unidad
                    (if (and (eq? (string-ref path 1) #\:) (eq? (string-ref path 2) #\/))
@@ -964,7 +972,7 @@
                            ((cp system) source path)
                            system
                            )
-                       ((cp system) source (string-append (get-system-current-drive system) ":" path))
+                       ((cp system) source (string-append (list->string (list (get-system-current-drive system))) ":" path))
                        )
                    )
                  )))
@@ -1080,3 +1088,7 @@ S52
 S53
 (define S54 ((run S53 rd) "home"))
 S54
+(define S55 ((run S54 cd) "/home seba"))
+S55
+(define S56 ((run S55 copy) "foo1.txt" "/"))
+S56
