@@ -31,13 +31,13 @@
 
 ;; Se construye una carpeta
 (define make-folder (lambda
-                        (name user-creator path . securityAtributes)
-                      (list name (current-seconds) (current-seconds) securityAtributes user-creator "folder" path)
+                        (name password decryptFn user-creator path . securityAtributes)
+                      (list name (current-seconds) (current-seconds) securityAtributes password decryptFn user-creator "folder" path)
                       ))
 
 (define make-new-folder (lambda
-                        (name user-creator path securityAtributes)
-                      (list name (current-seconds) (current-seconds) securityAtributes user-creator "folder" path)
+                        (name password decryptFn user-creator path securityAtributes)
+                      (list name (current-seconds) (current-seconds) securityAtributes password decryptFn user-creator "folder" path)
                       ))
 
 ;; Se constuye un archivo
@@ -52,8 +52,8 @@
 
 ;; Se le da forma del TDA
 (define make-file (lambda
-                      (archivo user-creator path)
-                    (reverse (cons path (cons "file" (cons user-creator archivo))))
+                      (archivo password decryptFn user-creator path)
+                    (reverse (cons path (cons "file" (cons user-creator (cons decryptFn (cons password archivo))))))
                     ))
 
 ;; Selectores de TDA Archivo
@@ -68,6 +68,12 @@
 
 (define get-file-security-atributes (lambda (archivo)
                            (list-ref archivo 5)))
+
+(define get-file-password-encrypt (lambda (archivo)
+                                    (list-ref archivo 6)))
+
+(define get-file-decrypt-fn (lambda (archivo)
+                                    (list-ref archivo 7)))
 
 ;; Selectores de TDA Carpeta
 (define get-folder-security-atributes (lambda (folder)
@@ -158,11 +164,17 @@
 
 ;; Obtener el nombre de usuario en una carpeta
 (define get-user-in-folder (lambda (folder)
-                             (list-ref folder 4)))
+                             (list-ref folder 6)))
+
+(define get-folder-password-encrypt (lambda (archivo)
+                                    (list-ref archivo 4)))
+
+(define get-folder-decrypt-fn (lambda (archivo)
+                                    (list-ref archivo 5)))
 
 ;; Obtener el nombre de usuario en un archivo
 (define get-user-in-file (lambda (archivo)
-                           (list-ref archivo 6)))
+                           (list-ref archivo 8)))
  
 ;; Obtener path de una carpeta
 (define get-path (lambda (folder)
@@ -337,7 +349,7 @@
                                          (cons (make-drive
                                                 (get-system-current-drive system)
                                                 (get-name-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
-                                                (cons (make-folder name (get-system-current-user system) (get-system-path system))
+                                                (cons (make-folder name "" "" (get-system-current-user system) (get-system-path system))
                                                       (get-system-folder system))
                                                 (get-capacity-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
                                                 ) null)
@@ -346,7 +358,7 @@
                                    (get-system-current-drive system)
                                    (get-system-path system)
                                    ;; Se crea la carpeta nueva
-                                   (cons (make-folder name (get-system-current-user system) (get-system-path system))
+                                   (cons (make-folder name "" "" (get-system-current-user system) (get-system-path system))
                                          (get-system-folder system))
                                    (get-system-fecha-creacion system)
                                    )
@@ -497,7 +509,7 @@
                                             (cons (make-drive
                                                    (get-system-current-drive system)
                                                    (get-name-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
-                                                   (cons (make-file file (get-system-current-user system) (get-system-path system))
+                                                   (cons (make-file file "" "" (get-system-current-user system) (get-system-path system))
                                                          (get-system-folder system))
                                                    (get-capacity-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
                                                    ) null)
@@ -506,7 +518,7 @@
                                       (get-system-current-drive system)
                                       (get-system-path system)
                                       ;; Se crea la carpeta nueva
-                                      (cons (make-file file (get-system-current-user system) (get-system-path system))
+                                      (cons (make-file file "" "" (get-system-current-user system) (get-system-path system))
                                             (get-system-folder system))
                                       (get-system-fecha-creacion system)
                                       )
@@ -882,7 +894,7 @@
 
 ;; Función para modificar el path de un archivo
 (define cambiar-path-archivo (lambda (archivo user path)
-                               (make-file (new-file (get-file-name archivo) (get-file-extension archivo) (get-file-content archivo) (get-file-security-atributes archivo)) user path)
+                               (make-file (new-file (get-file-name archivo) (get-file-extension archivo) (get-file-content archivo) (get-file-security-atributes archivo)) (get-file-password-encrypt archivo) (get-file-decrypt-fn archivo) user path)
                                ))
                                
 
@@ -971,6 +983,8 @@
                                           )
   )
 
+
+
 ;; Cambia el path de todo un conjunto de archivos
 (define cambiar-path-carpetas (lambda (files path)
                                 (if (null? files)
@@ -980,6 +994,8 @@
                                         (cons
                                          (make-new-folder
                                           (get-name-folder (car files))
+                                          (get-folder-password-encrypt (car files))
+                                          (get-folder-decrypt-fn (car files))
                                           (get-user-in-folder (car files))
                                           (string-append (if (equal? path "/") (substring path 1 (string-length path)) path) (get-path (car files)))
                                           (get-folder-security-atributes (car files))
@@ -990,6 +1006,8 @@
                                         (cons
                                          (make-file
                                           (new-file (get-file-name (car files)) (get-file-extension (car files)) (get-file-content (car files)) (get-file-security-atributes (car files)))
+                                          (get-file-password-encrypt (car files))
+                                          (get-file-decrypt-fn (car files))
                                           (get-user-in-file (car files))
                                           (string-append (if (equal? path "/") (substring path 1 (string-length path)) path) (get-path (car files)))
                                           ) 
@@ -1007,6 +1025,8 @@
                                         (cons
                                          (make-new-folder
                                           (get-name-folder (car files))
+                                          (get-folder-password-encrypt (car files))
+                                          (get-folder-decrypt-fn (car files))
                                           (get-user-in-folder (car files))
                                           (if
                                            (string-contains? (get-path (car files)) source)
@@ -1020,6 +1040,8 @@
                                         (cons
                                          (make-file
                                           (new-file (get-file-name (car files)) (get-file-extension (car files)) (get-file-content (car files)) (get-file-security-atributes (car files)))
+                                          (get-file-password-encrypt (car files))
+                                          (get-file-decrypt-fn (car files))
                                           (get-user-in-file (car files))
                                           (if
                                            (string-contains? (get-path (car files)) source)
@@ -1038,6 +1060,8 @@
                                       (if (string=? (get-name-folder archivo) oldName)
                                           (make-new-folder
                                            name
+                                           (get-folder-password-encrypt archivo)
+                                           (get-folder-decrypt-fn archivo)
                                            (get-user-in-folder archivo)
                                            (get-path archivo)
                                            (get-folder-security-atributes archivo)
@@ -1056,6 +1080,8 @@
                                      (get-file-content archivo)
                                      (get-file-security-atributes archivo)
                                      )
+                                    (get-file-password-encrypt archivo)
+                                    (get-file-decrypt-fn archivo)
                                     (get-user-in-file archivo)
                                     (get-path archivo)
                                     )
@@ -1410,7 +1436,247 @@
                    )
                  )
   )
-                       
+
+;; Funciones que tienen que ver con encriptación de archivos
+(define plus-one (lambda (palabra)
+                   (list->string
+                    (map (lambda (caracter)
+                           (integer->char (+ 1 (char->integer caracter))))
+                         (string->list palabra)))
+                   ))
+
+(define minus-one (lambda (palabra)
+                   (list->string
+                    (map (lambda (caracter)
+                           (integer->char (- (char->integer caracter) 1)))
+                         (string->list palabra))
+                    )
+                   ))
+
+
+(define encriptar-carpetas (lambda (files encryptFn minus-one password)
+                                   (map
+                                    (lambda (archivo)
+                                      (if (string=? (get-type-file archivo) "folder")
+                                          (make-new-folder
+                                           (encryptFn (get-file-name archivo))
+                                           password
+                                           minus-one
+                                           (get-user-in-folder archivo)
+                                           (get-path archivo)
+                                           (get-folder-security-atributes archivo)
+                                           )
+                                          (make-file
+                                           (new-file
+                                            (encryptFn (get-file-name archivo))
+                                            (encryptFn (get-file-extension archivo))
+                                            (encryptFn (get-file-content archivo))
+                                            (get-file-security-atributes archivo)
+                                            )
+                                           password
+                                           minus-one
+                                           (get-user-in-file archivo)
+                                           (get-path archivo)
+                                           )
+                                      )
+                             )
+                             files)
+                             ))
+
+(define encriptar-archivo (lambda (archivo encryptFn minus-one password) 
+                            (make-file
+                             (new-file
+                              (encryptFn (get-file-name archivo))
+                              (encryptFn (get-file-extension archivo))
+                              (encryptFn (get-file-content archivo))
+                              (get-file-security-atributes archivo)
+                              )
+                             password
+                             minus-one
+                             (get-user-in-file archivo)
+                             (get-path archivo)
+                             )      
+                            ))
+
+(define encrypt (lambda (system)
+                  (lambda (encryptFn minus-one password folderName)
+                 ;; Se verifica que el archivo exista en la ruta actual
+                    (if
+                     (null? (get-file-in-current-directory (get-system-folder system) folderName (get-system-path system)))
+                     system
+                     (if
+                      (eq? (get-type-file (car (get-file-in-current-directory (get-system-folder system) folderName (get-system-path system)))) "folder")
+                      ((insertar-conjunto-de-carpetas-y-archivos ((del system) folderName)) (encriptar-carpetas
+                                                                                         (get-all-files-in-subdirectories
+                                                                                          (get-system-folder system)
+                                                                                          folderName
+                                                                                          (get-subdirectory-of-folder
+                                                                                           (string-append (if (eq? (get-system-path system) "/") (get-system-path system) (string-append (get-system-path system) "/")) folderName)
+                                                                                           (get-all-existing-paths (get-system-folder system)))
+                                                                                          )
+                                                                                         encryptFn
+                                                                                         minus-one
+                                                                                         password
+                                                                                         )
+                                                                                        )
+                      ((insertar-archivo ((del system) folderName)) (encriptar-archivo
+                                                                 (car (get-file-in-current-directory (get-system-folder system) folderName (get-system-path system)))
+                                                                 encryptFn
+                                                                 minus-one
+                                                                 password
+                                                                 ))               
+                      )
+                     )
+                    )))
+
+;; Desencriptar un archivo
+;; Esta función obtiene todas las rutas existentes
+(define insertar-conjunto-de-carpetas-y-archivos-encrypt (lambda (system)
+                           (lambda (folders folderName)
+                             (make-system (get-system-name system)
+                                          (get-system-usuarios system)
+                                          ;; Se obtienen todo el resto de drives y se crea nuevamente el drive modificado
+                                          (cons (get-rest-drives (get-system-drive system) null (get-system-current-drive system))
+                                                (cons (make-drive
+                                                       (get-system-current-drive system)
+                                                       (get-name-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                       (filter
+                                                        (lambda (archivo) (not (member archivo (get-all-files-in-subdirectories
+                                                                                                                (get-system-folder system)
+                                                                                                                (plus-one folderName)
+                                                                                                                (get-subdirectory-of-folder
+                                                                                                                 (string-append (if (eq? (get-system-path system) "/") (get-system-path system) (string-append (get-system-path system) "/")) folderName)
+                                                                                                                 (get-all-existing-paths-decrypt (get-system-folder system)))
+                                                                                                                ))))
+                                                        (append folders (get-system-folder system)))
+                                                       (get-capacity-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                       ) null)
+                                                )
+                                          (get-system-current-user system)
+                                          (get-system-current-drive system)
+                                          (get-system-path system)
+                                          ;; Se crea la carpeta nueva
+                                          (filter
+                                           (lambda (archivo) (not (member archivo (get-all-files-in-subdirectories
+                                                                                                                (get-system-folder system)
+                                                                                                                (plus-one folderName)
+                                                                                                                (get-subdirectory-of-folder
+                                                                                                                 (string-append (if (eq? (get-system-path system) "/") (get-system-path system) (string-append (get-system-path system) "/")) folderName)
+                                                                                                                 (get-all-existing-paths-decrypt (get-system-folder system)))
+                                                                                                                ))))
+                                           (append folders (get-system-folder system)))
+                                          (get-system-fecha-creacion system)
+                                          )
+                             )
+                           )
+  )
+
+(define insertar-archivo-encrypt (lambda (system)
+                           (lambda (folders folderName)
+                             (make-system (get-system-name system)
+                                          (get-system-usuarios system)
+                                          ;; Se obtienen todo el resto de drives y se crea nuevamente el drive modificado
+                                          (cons (get-rest-drives (get-system-drive system) null (get-system-current-drive system))
+                                                (cons (make-drive
+                                                       (get-system-current-drive system)
+                                                       (get-name-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                       (filter (lambda (archivo) (not (equal? archivo folderName)))
+                                                        (cons folders (get-system-folder system)))
+                                                       (get-capacity-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                       ) null)
+                                                )
+                                          (get-system-current-user system)
+                                          (get-system-current-drive system)
+                                          (get-system-path system)
+                                          ;; Se crea la carpeta nueva
+                                          (filter (lambda (archivo) (not (equal? archivo folderName)))
+                                                        (cons folders (get-system-folder system)))
+                                          (get-system-fecha-creacion system)
+                                          )
+                             )
+                           )
+  )
+
+(define get-all-existing-paths-decrypt (lambda (folders)
+                                 (cons "/" (map (lambda (folder) (string-append (get-path folder) (if (eq? (get-path folder) "/") (minus-one (get-name-folder folder)) (string-append "/" (minus-one (get-name-folder folder)))))) (filter (lambda (folder) (eq? (get-type-file folder) "folder")) folders)))
+                                 ))
+
+(define desencriptar-carpetas (lambda (files)
+                                   (map
+                                    (lambda (archivo)
+                                      (if (string=? (get-type-file archivo) "folder")
+                                          (make-new-folder
+                                           ((get-folder-decrypt-fn archivo) (get-file-name archivo))
+                                           ""
+                                           ""
+                                           (get-user-in-folder archivo)
+                                           (get-path archivo)
+                                           (get-folder-security-atributes archivo)
+                                           )
+                                          (make-file
+                                           (new-file
+                                            ((get-file-decrypt-fn archivo) (get-file-name archivo))
+                                            ((get-file-decrypt-fn archivo) (get-file-extension archivo))
+                                            ((get-file-decrypt-fn archivo) (get-file-content archivo))
+                                            (get-file-security-atributes archivo)
+                                            )
+                                           ""
+                                           ""
+                                           (get-user-in-file archivo)
+                                           (get-path archivo)
+                                           )
+                                      )
+                             )
+                             files)
+                             ))
+
+(define desencriptar-archivo (lambda (archivo) 
+                            (make-file
+                             (new-file
+                              ((get-file-decrypt-fn archivo) (get-file-name archivo))
+                              ((get-file-decrypt-fn archivo) (get-file-extension archivo))
+                              ((get-file-decrypt-fn archivo) (get-file-content archivo))
+                              (get-file-security-atributes archivo)
+                              )
+                             ""
+                             ""
+                             (get-user-in-file archivo)
+                             (get-path archivo)
+                             )      
+                            ))
+
+(define decrypt (lambda (system)
+                  (lambda (password folderName)
+                    (if
+                     (null? (get-file-in-current-directory (get-system-folder system) (plus-one folderName) (get-system-path system)))
+                     system
+                         (if
+                          (eq? (get-type-file (car (get-file-in-current-directory (get-system-folder system) (plus-one folderName) (get-system-path system)))) "folder")
+                          (if (string=? (get-folder-password-encrypt (car (get-file-in-current-directory (get-system-folder system) (plus-one folderName) (get-system-path system)))) password)
+                              ((insertar-conjunto-de-carpetas-y-archivos-encrypt ((del system) (plus-one folderName))) (desencriptar-carpetas
+                                                                                                     (get-all-files-in-subdirectories
+                                                                                                      (get-system-folder system)
+                                                                                                      (plus-one folderName)
+                                                                                                      (get-subdirectory-of-folder
+                                                                                                       (string-append (if (eq? (get-system-path system) "/") (get-system-path system) (string-append (get-system-path system) "/")) folderName)
+                                                                                                       (get-all-existing-paths-decrypt (get-system-folder system)))
+                                                                                                      )
+                                                                                                     ) folderName
+                                                                                                    )
+                              system
+                              )
+                          (if (string=? (get-file-password-encrypt (car (get-file-in-current-directory (get-system-folder system) (plus-one folderName) (get-system-path system)))) password)
+                              ((insertar-archivo-encrypt ((del system) folderName)) (desencriptar-archivo
+                                                                             (car (get-file-in-current-directory (get-system-folder system) (plus-one folderName) (get-system-path system)))
+                                                                             )
+                                                                            (car (get-file-in-current-directory (get-system-folder system) (plus-one folderName) (get-system-path system)))
+                                                                            )
+                              system
+                              )
+                          )
+                     )
+                     )))
+                    
 
 ;; Script
 ;; Se crea el sistema
@@ -1586,3 +1852,11 @@ S80
 
 (define S81 ((run S80 format) #\C "perro"))
 S81
+(define S82 ((run S81 encrypt) plus-one minus-one "1234" "foo2.txt"))
+S82
+(define S83 ((run S82 encrypt) plus-one minus-one "1234" "usr"))
+S83
+(define S84 ((run S83 decrypt) "1234" "foo2.txt"))
+S84
+(define S85 ((run S84 decrypt) "1234" "usr"))
+S85
