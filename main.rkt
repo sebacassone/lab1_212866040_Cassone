@@ -44,11 +44,11 @@
 ;; TDA File = name (String) x extension (String) x Contenido (String) x secturity-atributes (Security) x type (String) x path (String)
 (define file (lambda
                  (name extension content . security-atributes)
-               (list security-atributes content extension name)))
+               (list security-atributes content extension (current-seconds) (current-seconds) name)))
 
 (define new-file (lambda
                  (name extension content security-atributes)
-               (list security-atributes content extension name)))
+               (list security-atributes content extension (current-seconds) (current-seconds) name)))
 
 ;; Se le da forma del TDA
 (define make-file (lambda
@@ -61,13 +61,13 @@
                         (list-ref archivo 0)))
 
 (define get-file-extension (lambda (archivo)
-                             (list-ref archivo 1)))
+                             (list-ref archivo 3)))
 
 (define get-file-content (lambda (archivo)
-                                (list-ref archivo 2)))
+                                (list-ref archivo 4)))
 
 (define get-file-security-atributes (lambda (archivo)
-                           (list-ref archivo 3)))
+                           (list-ref archivo 5)))
 
 ;; Selectores de TDA Carpeta
 (define get-folder-security-atributes (lambda (folder)
@@ -162,7 +162,7 @@
 
 ;; Obtener el nombre de usuario en un archivo
 (define get-user-in-file (lambda (archivo)
-                           (list-ref archivo 4)))
+                           (list-ref archivo 6)))
  
 ;; Obtener path de una carpeta
 (define get-path (lambda (folder)
@@ -184,7 +184,7 @@
 
 ;; Obtiene la extensión de un archivo
 (define get-extension-file (lambda (archivo)
-                                    (list-ref archivo 1)))
+                                    (list-ref archivo 3)))
                                  
 ;; Obtener el tipo 
 
@@ -1281,8 +1281,101 @@
                    )
                   )
                  )))
-                     
-                 
+
+;; Requerimiento de DIR
+(define dir (lambda (system)
+              (lambda (params)
+                (define dir-int (lambda (system)
+                                  (lambda (files params)
+                                    (cond 
+                                      ((null? params) files)
+                                      ((and (member "/s" params) (member "/a" params))
+                                       ((dir-int system) 
+                                        (append files
+                                                (filter 
+                                                 (lambda (archivo) (not (member archivo files)))
+                                                 (get-all-files-in-subdirectories
+                                                  (get-system-folder system)
+                                                  (get-system-path system)
+                                                  (if (equal? (get-system-path system) "/")
+                                                      (get-all-existing-paths (get-system-folder system))
+                                                      (get-subdirectory-of-folder
+                                                       (get-system-path system)
+                                                       (get-all-existing-paths (get-system-folder system))
+                                                       )
+                                                      )
+                                                  )
+                                                 )
+                                                )
+                                        (cdr (cdr params))
+                                        )
+                                       )
+                                      ((member "/a" params)
+                                       ((dir-int system) 
+                                        (append files
+                                                (filter
+                                                 (lambda (archivo)
+                                                   (and
+                                                    (string=? (get-path archivo) (get-system-path system))
+                                                   (not (member archivo files)))
+                                                   )
+                                                 (get-system-folder system))
+                                                 )
+                                        (cdr params)
+                                        ))
+                                      ((member "/s" params)
+                                       ((dir-int system) 
+                                        (append files
+                                                (filter 
+                                                 (lambda (archivo)
+                                                   (and
+                                                    (not (member archivo files))
+                                                    (not (member #\h (if (string=? (get-type-file archivo) "file") (get-file-security-atributes archivo) (get-folder-security-atributes archivo))))
+                                                    )
+                                                   )
+                                                 (get-all-files-in-subdirectories
+                                                  (get-system-folder system)
+                                                  (get-system-path system)
+                                                  (if (equal? (get-system-path system) "/")
+                                                      (get-all-existing-paths (get-system-folder system))
+                                                      (get-subdirectory-of-folder
+                                                       (get-system-path system)
+                                                       (get-all-existing-paths (get-system-folder system))
+                                                       )
+                                                      )
+                                                  )
+                                                 )
+                                                )
+                                        (cdr params)
+                                        )
+                                       )
+                                      ((and (member "/o" params) (member "D" params))
+                                       (sort files (lambda (sub1 sub2) (< (list-ref sub1 1) (list-ref sub2 1))))
+                                       )
+                                      ((and (member "/o" params) (member "-D" params))
+                                       (sort files (lambda (sub1 sub2) (> (list-ref sub1 1) (list-ref sub2 1))))
+                                       )
+                                      ((and (member "/o" params) (member "N" params))
+                                       (sort files (lambda (sub1 sub2) (string<? (list-ref sub1 0) (list-ref sub2 0))))
+                                       )
+                                     ((and (member "/o" params) (member "-N" params))
+                                       (sort files (lambda (sub1 sub2) (string>? (list-ref sub1 0) (list-ref sub2 0))))
+                                       )
+                                      (else "/s para obtener subcarpetas; /a para obtener archivos ocultos; /o para ordenar, con N para ordenar alfabeticamente y D por fecha de creación, si se acompaña por delante un signo - ordena de manera descendente")
+                                    )
+                                    )))
+                (write
+                 ((dir-int system)
+                  (filter
+                   (lambda (archivo)
+                     (and (string=? (get-path archivo) (get-system-path system))
+                          (not (member #\h (if (string=? (get-type-file archivo) "file") (get-file-security-atributes archivo) (get-folder-security-atributes archivo))))
+                          )
+                     )
+                     (get-system-folder system))
+                  (string-split params " ")))
+                )))
+                
 
 ;; Script
 ;; Se crea el sistema
@@ -1442,3 +1535,17 @@ S76
 S77
 (define S78 ((run S77 ren) "foo1.txt" "foo2.txa"))
 S78
+(define S79 ((run S78 dir) "/s /a"))
+S79
+(define S80 ((run S78 cd) "/"))
+S80
+(display ((run S80 dir) "/s /o N"))
+(display "\n")
+(display ((run S80 dir) "/s"))
+(display "\n")
+(display ((run S80 dir) "/s /a"))
+(display "\n")
+(display ((run S80 dir) "/s /a /o N"))
+(display "\n")
+(display ((run S80 dir) "/?"))
+
