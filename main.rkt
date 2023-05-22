@@ -1375,7 +1375,42 @@
                      (get-system-folder system))
                   (string-split params " ")))
                 )))
-                
+
+;; Format
+(define formatear-unidad (lambda (system)
+                           (lambda (letter name)
+                             (make-system (get-system-name system)
+                                          (get-system-usuarios system)
+                                          ;; Se obtienen todo el resto de drives y se crea nuevamente el drive modificado
+                                          (cons (get-rest-drives (get-system-drive system) null (get-system-current-drive system))
+                                                (cons (make-drive
+                                                       (get-system-current-drive system)
+                                                       name
+                                                       '()
+                                                       (get-capacity-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                       ) null)
+                                                )
+                                          (get-system-current-user system)
+                                          (get-system-current-drive system)
+                                          (get-system-path system)
+                                          ;; Se crea la carpeta nueva
+                                          '()
+                                          (get-system-fecha-creacion system)
+                                          )
+                             )
+                           )
+  )
+
+(define format (lambda (system)
+                 (lambda (letter name)
+                   (if (memq letter (get-letters-all-drives system))
+                       ((switch-drive ((formatear-unidad ((switch-drive system) letter)) letter name)) (get-system-current-drive system)) 
+                       system
+                       )
+                   )
+                 )
+  )
+                       
 
 ;; Script
 ;; Se crea el sistema
@@ -1549,3 +1584,5 @@ S80
 (display "\n")
 (display ((run S80 dir) "/?"))
 
+(define S81 ((run S80 format) #\C "perro"))
+S81
