@@ -1060,7 +1060,7 @@
                  )
                  )))
 
-;; Esta función es intermediara entre 
+;; Esta función es intermediara entre cp, para verificar si las unidades existen y todo eso
 (define copy (lambda (system)
                (lambda (source path)
                  (if (string=? "/" path)
@@ -1078,6 +1078,99 @@
                        )
                    )
                  )))
+
+;; Función que hace lo mismo que copy pero elimina el archivo de origen
+(define mv (lambda (system)
+               (lambda (source targetPath)
+                 ;; Se verifica que el archivo exista en la ruta actual
+                 (if
+                  (null? (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))
+                 system
+                 ;; Verifica que la letra actual es igual al la del targetPath si corresponde
+                 (if (equal? (string-ref targetPath 0) (get-system-current-drive system))
+                      ;; Se verifica que targetPath sea una ruta válida
+                     (if
+                      (member (substring targetPath 2 (string-length targetPath)) (get-all-existing-paths (get-system-folder system)))
+                      ;; Si lo es, verifica que al insertar el archivo en en la ruta deseada no sea duplicado
+                      (if
+                       (eq? (verificar-carpetas-duplicadas source (substring targetPath 2 (string-length targetPath)) (get-system-folder system)) 0)
+                       (if
+                        (equal? (get-type-file (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))) "folder")
+                           ((del ((insertar-conjunto-de-carpetas-y-archivos system) (cambiar-path-carpetas
+                                                       (get-all-files-in-subdirectories
+                                                        (get-system-folder system)
+                                                        source
+                                                        (get-subdirectory-of-folder
+                                                         (string-append (if (eq? (get-system-path system) "/") (get-system-path system) (string-append (get-system-path system) "/")) source)
+                                                         (get-all-existing-paths (get-system-folder system)))
+                                                        )
+                                                       (substring targetPath 2 (string-length targetPath))
+                                                       )
+                                                      )) source)
+                           ((del ((insertar-archivo system) (cambiar-path-archivo
+                                                       (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))
+                                                       (get-system-current-user system)
+                                                       (substring targetPath 2 (string-length targetPath))))) source)
+                           )
+                       system
+                       )
+                      system
+                      )
+                     (if
+                      (member (substring targetPath 2 (string-length targetPath)) (get-all-existing-paths (get-system-folder ((switch-drive system) (string-ref targetPath 0)))))
+                      ;; Si lo es, verifica que al insertar el archivo en en la ruta deseada no sea duplicado
+                      (if
+                       (eq? (verificar-carpetas-duplicadas source (substring targetPath 2 (string-length targetPath)) (get-system-folder ((switch-drive system) (string-ref targetPath 0)))) 0)
+                       (if
+                        (equal? (get-type-file (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))) "folder")
+                           ((del ((switch-drive ((insertar-conjunto-de-carpetas-y-archivos ((switch-drive system) (string-ref targetPath 0)))
+                            (cambiar-path-carpetas
+                             (get-all-files-in-subdirectories
+                              (get-system-folder system)
+                              source
+                              (get-subdirectory-of-folder
+                               (string-append
+                                (if (eq? (get-system-path system) "/") (get-system-path system) (string-append (get-system-path system) "/"))
+                                source
+                                )
+                               (get-all-existing-paths (get-system-folder system))
+                               )
+                              )
+                             (substring targetPath 2 (string-length targetPath)))
+                            )) (get-system-current-drive system))) source)
+                           ((del ((switch-drive ((insertar-archivo ((switch-drive system) (string-ref targetPath 0)))
+                            (cambiar-path-archivo
+                             (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))
+                             (get-system-current-user system)
+                             (substring targetPath 2 (string-length targetPath)))
+                            )) (get-system-current-drive system))) source)
+                           )
+                       system
+                       )
+                      system
+                      )
+                     )
+                 )
+                 )))
+
+(define move (lambda (system)
+               (lambda (source path)
+                 (if (string=? "/" path)
+                   ((cp system) source (string-append (list->string (list (get-system-current-drive system))) ":" "/"))
+                   ;; Si el path tiene la forma "X:/", verifica si la unidad X existe y si X no es la unidad actual se hace el cambio
+                   ;; de unidad
+                   (if (and (eq? (string-ref path 1) #\:) (eq? (string-ref path 2) #\/))
+                       ;; Se verifica que la unidad existe, si existe se verifica si es la unidad actual, de lo contario no hace nada
+                       (if (memq (string-ref path 0) (get-letters-all-drives system))
+                           ;; Se verifica si la unidad pedida es la actual o no
+                           ((mv system) source path)
+                           system
+                           )
+                       ((mv system) source (string-append (list->string (list (get-system-current-drive system))) ":" path))
+                       )
+                   )
+                 )))
+
 
 ;; Script
 ;; Se crea el sistema
@@ -1225,3 +1318,5 @@ S70
 S71
 (define S72 ((run S71 copy) "var" "C:/FOLDER"))
 S72
+(define S73 ((run S72 move) "var" "D:/home seba"))
+S73
