@@ -31,8 +31,13 @@
 
 ;; Se construye una carpeta
 (define make-folder (lambda
-                        (name user-creator path)
-                      (list name (current-seconds) (current-seconds) (make-security-atributes #\r #\w "" "all") user-creator "folder" path)
+                        (name user-creator path . securityAtributes)
+                      (list name (current-seconds) (current-seconds) securityAtributes user-creator "folder" path)
+                      ))
+
+(define make-new-folder (lambda
+                        (name user-creator path securityAtributes)
+                      (list name (current-seconds) (current-seconds) securityAtributes user-creator "folder" path)
                       ))
 
 ;; Se constuye un archivo
@@ -41,11 +46,32 @@
                  (name extension content . security-atributes)
                (list security-atributes content extension name)))
 
+(define new-file (lambda
+                 (name extension content security-atributes)
+               (list security-atributes content extension name)))
+
 ;; Se le da forma del TDA
 (define make-file (lambda
                       (archivo user-creator path)
                     (reverse (cons path (cons "file" (cons user-creator archivo))))
                     ))
+
+;; Selectores de TDA Archivo
+(define get-file-name (lambda (archivo)
+                        (list-ref archivo 0)))
+
+(define get-file-extension (lambda (archivo)
+                             (list-ref archivo 1)))
+
+(define get-file-content (lambda (archivo)
+                                (list-ref archivo 2)))
+
+(define get-file-security-atributes (lambda (archivo)
+                           (list-ref archivo 3)))
+
+;; Selectores de TDA Carpeta
+(define get-folder-security-atributes (lambda (folder)
+                           (list-ref folder 3)))
 
 ;; Selectores del TDA System
 ;; Obtener de la lista de usuarios el usuario actual
@@ -129,6 +155,14 @@
 ;; Obtiene el nombre de una carpeta
 (define get-name-folder (lambda (folder)
                           (list-ref folder 0)))
+
+;; Obtener el nombre de usuario en una carpeta
+(define get-user-in-folder (lambda (folder)
+                             (list-ref folder 4)))
+
+;; Obtener el nombre de usuario en un archivo
+(define get-user-in-file (lambda (archivo)
+                           (list-ref archivo 4)))
  
 ;; Obtener path de una carpeta
 (define get-path (lambda (folder)
@@ -169,7 +203,6 @@
                           ))
 ;; Se verifican permisos
 (define (verificar-permisos patito) 1)
-(define copy (lambda (sistema) (list sistema)))
 
 ;; Diferencia de inmediato los tipos de comandos para poder verificar los permisos necesarios
 (define run
@@ -279,11 +312,11 @@
                                         ;; Filtro solo las carpetas de esta ruta
                                         (if (null? folders)
                                             0
-                                            (if (null? (filter (lambda (folder) (eq? (get-path folder) path)) folders))
+                                            (if (null? (filter (lambda (folder) (equal? (get-path folder) path)) folders))
                                                 0
                                                 (if
                                                  (eq?
-                                                  (car (car (filter (lambda (folder) (eq? (get-path folder) path)) folders)))
+                                                  (car (car (filter (lambda (folder) (equal? (get-path folder) path)) folders)))
                                                   name)
                                                  1
                                                  (verificar-carpetas-duplicadas name path (cdr folders))
@@ -821,7 +854,230 @@
                      )
                  system)
                )))
-               
+
+;; Función que obtiene el archivo según su nombre actual
+(define get-file-in-current-directory (lambda (drive source path)
+                                        (filter
+                                         (lambda
+                                             (archivo)
+                                            (eq? source (get-name-folder archivo))  
+                                           )
+                                         drive
+                                         )
+                                        ))
+
+;; Función para modificar el path de un archivo
+(define cambiar-path-archivo (lambda (archivo user path)
+                               (make-file (new-file (get-file-name archivo) (get-file-extension archivo) (get-file-content archivo) (get-file-security-atributes archivo)) user path)
+                               ))
+                               
+
+;; Función insertar archivo
+(define insertar-archivo (lambda (system)
+                           (lambda (folders)
+                             (make-system (get-system-name system)
+                                          (get-system-usuarios system)
+                                          ;; Se obtienen todo el resto de drives y se crea nuevamente el drive modificado
+                                          (cons (get-rest-drives (get-system-drive system) null (get-system-current-drive system))
+                                                (cons (make-drive
+                                                       (get-system-current-drive system)
+                                                       (get-name-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                       (cons folders
+                                                             (get-system-folder system))
+                                                       (get-capacity-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                       ) null)
+                                                )
+                                          (get-system-current-user system)
+                                          (get-system-current-drive system)
+                                          (get-system-path system)
+                                          ;; Se crea la carpeta nueva
+                                          (cons folders (get-system-folder system))
+                                          (get-system-fecha-creacion system)
+                                          )
+                             )
+                           )
+  )
+
+(define insertar-conjunto-de-carpetas-y-archivos (lambda (system)
+                           (lambda (folders)
+                             (make-system (get-system-name system)
+                                          (get-system-usuarios system)
+                                          ;; Se obtienen todo el resto de drives y se crea nuevamente el drive modificado
+                                          (cons (get-rest-drives (get-system-drive system) null (get-system-current-drive system))
+                                                (cons (make-drive
+                                                       (get-system-current-drive system)
+                                                       (get-name-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                       (append folders
+                                                             (get-system-folder system))
+                                                       (get-capacity-drive (get-drive (get-system-drive system) (get-system-current-drive system)))
+                                                       ) null)
+                                                )
+                                          (get-system-current-user system)
+                                          (get-system-current-drive system)
+                                          (get-system-path system)
+                                          ;; Se crea la carpeta nueva
+                                          (append folders
+                                                             (get-system-folder system))
+                                          (get-system-fecha-creacion system)
+                                          )
+                             )
+                           )
+  )
+
+;; Obtener todas las carpetas y directorios de una ruta
+(define get-all-files-in-subdirectories (lambda (files source subdirectories)
+                                          (define get-all-files-in-subdirectories-int (lambda (files source subdirectories endFiles)
+                                                      (if (null? subdirectories)
+                                                          endFiles
+                                                          (get-all-files-in-subdirectories-int
+                                                           ;; Se hace un filtro para obtener todos los archivos menos los que estén dentro de la carpeta
+                                                           files
+                                                           source
+                                                           (cdr subdirectories)
+                                                           (append 
+                                                                    
+                                                            ;; Se filtra a todos los archivos que tengan el path de la carpeta que se quiere eliminar
+                                                                  (filter
+                                                                   (lambda (archivo)
+                                                                     (string=?
+                                                                      (car subdirectories)
+                                                                      (get-path archivo)
+                                                                      )
+                                                                     )
+                                                                   files
+                                                                   ) endFiles )
+                                                           )
+                                                          )
+                                                                         ))
+                                          ;; Une la carpeta original que se copiara con los subdirectorios
+                                          (append (filter (lambda (archivo)
+                                                            (string=? (get-name-folder archivo)
+                                                                      source)
+                                                            ) files) (get-all-files-in-subdirectories-int files source subdirectories null))
+                                          )
+  )
+
+;; Cambia el path de todo un conjunto de archivos
+(define cambiar-path-carpetas (lambda (files path)
+                                (if (null? files)
+                                    null
+                                    (if (string=? (get-type-file (car files)) "folder")
+                                        ;; En caso de que sea una carpeta se crea una carpeta
+                                        (cons
+                                         (make-new-folder
+                                          (get-name-folder (car files))
+                                          (get-user-in-folder (car files))
+                                          (string-append (if (equal? path "/") (substring path 1 (string-length path)) path) (get-path (car files)))
+                                          (get-folder-security-atributes (car files))
+                                          )
+                                         (cambiar-path-carpetas (cdr files) path)
+                                         )
+                                        ;; En caso de que sea un archivo
+                                        (cons
+                                         (make-file
+                                          (new-file (get-file-name (car files)) (get-file-extension (car files)) (get-file-content (car files)) (get-file-security-atributes (car files)))
+                                          (get-user-in-file (car files))
+                                          (string-append (if (equal? path "/") (substring path 1 (string-length path)) path) (get-path (car files)))
+                                          ) 
+                                         (cambiar-path-carpetas (cdr files) path))
+                                        )
+                                    )
+                                ))
+
+                             
+;; Se crea requerimiento de Copy, esta función usará la función de obtener un archivo
+;; en un mismo directorio, y también la función de crear un archivo
+(define cp (lambda (system)
+               (lambda (source targetPath)
+                 ;; Se verifica que el archivo exista en la ruta actual
+                 (if
+                  (null? (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))
+                 system
+                 ;; Verifica que la letra actual es igual al la del targetPath si corresponde
+                 (if (equal? (string-ref targetPath 0) (get-system-current-drive system))
+                      ;; Se verifica que targetPath sea una ruta válida
+                     (if
+                      (member (substring targetPath 2 (string-length targetPath)) (get-all-existing-paths (get-system-folder system)))
+                      ;; Si lo es, verifica que al insertar el archivo en en la ruta deseada no sea duplicado
+                      (if
+                       (eq? (verificar-carpetas-duplicadas source (substring targetPath 2 (string-length targetPath)) (get-system-folder system)) 0)
+                       (if
+                        (equal? (get-type-file (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))) "folder")
+                           ((insertar-conjunto-de-carpetas-y-archivos system) (cambiar-path-carpetas
+                                                       (get-all-files-in-subdirectories
+                                                        (get-system-folder system)
+                                                        source
+                                                        (get-subdirectory-of-folder
+                                                         (string-append (if (eq? (get-system-path system) "/") (get-system-path system) (string-append (get-system-path system) "/")) source)
+                                                         (get-all-existing-paths (get-system-folder system)))
+                                                        )
+                                                       (substring targetPath 2 (string-length targetPath))
+                                                       )
+                                                      )
+                           ((insertar-archivo system) (cambiar-path-archivo
+                                                       (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))
+                                                       (get-system-current-user system)
+                                                       (substring targetPath 2 (string-length targetPath))))
+                           )
+                       system
+                       )
+                      system
+                      )
+                     (if
+                      (member (substring targetPath 2 (string-length targetPath)) (get-all-existing-paths (get-system-folder ((switch-drive system) (string-ref targetPath 0)))))
+                      ;; Si lo es, verifica que al insertar el archivo en en la ruta deseada no sea duplicado
+                      (if
+                       (eq? (verificar-carpetas-duplicadas source (substring targetPath 2 (string-length targetPath)) (get-system-folder ((switch-drive system) (string-ref targetPath 0)))) 0)
+                       (if
+                        (equal? (get-type-file (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))) "folder")
+                           ((switch-drive ((insertar-conjunto-de-carpetas-y-archivos ((switch-drive system) (string-ref targetPath 0)))
+                            (cambiar-path-carpetas
+                             (get-all-files-in-subdirectories
+                              (get-system-folder system)
+                              source
+                              (get-subdirectory-of-folder
+                               (string-append
+                                (if (eq? (get-system-path system) "/") (get-system-path system) (string-append (get-system-path system) "/"))
+                                source
+                                )
+                               (get-all-existing-paths (get-system-folder system))
+                               )
+                              )
+                             (substring targetPath 2 (string-length targetPath)))
+                            )) (get-system-current-drive system))
+                           ((switch-drive ((insertar-archivo ((switch-drive system) (string-ref targetPath 0)))
+                            (cambiar-path-archivo
+                             (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))
+                             (get-system-current-user system)
+                             (substring targetPath 2 (string-length targetPath)))
+                            )) (get-system-current-drive system))
+                           )
+                       system
+                       )
+                      system
+                      )
+                     )
+                 )
+                 )))
+
+;; Esta función es intermediara entre 
+(define copy (lambda (system)
+               (lambda (source path)
+                 (if (string=? "/" path)
+                   ((cp system) source (string-append (list->string (list (get-system-current-drive system))) ":" "/"))
+                   ;; Si el path tiene la forma "X:/", verifica si la unidad X existe y si X no es la unidad actual se hace el cambio
+                   ;; de unidad
+                   (if (and (eq? (string-ref path 1) #\:) (eq? (string-ref path 2) #\/))
+                       ;; Se verifica que la unidad existe, si existe se verifica si es la unidad actual, de lo contario no hace nada
+                       (if (memq (string-ref path 0) (get-letters-all-drives system))
+                           ;; Se verifica si la unidad pedida es la actual o no
+                           ((cp system) source path)
+                           system
+                           )
+                       ((cp system) source (string-append (list->string (list (get-system-current-drive system))) ":" path))
+                       )
+                   )
+                 )))
 
 ;; Script
 ;; Se crea el sistema
@@ -934,3 +1190,38 @@ S52
 S53
 (define S54 ((run S53 rd) "home"))
 S54
+(define S55 ((run S54 cd) "/home seba"))
+S55
+(define S56 ((run S55 copy) "foo1.txt" "/"))
+S56
+(define S57 ((run S56 cd) "../"))
+S57
+(define S58 ((run S57 md) "var"))
+S58
+(define S59 ((run S58 cd) "var"))
+S59
+(define S60 ((run S59 md) "backups"))
+S60
+(define S61 ((run S60 md) "cache"))
+S61
+(define S62 ((run S61 md) "crash"))
+S62
+(define S63 ((run S62 md) "lib"))
+S63
+(define S64 ((run S63 md) "local"))
+S64
+(define S65 ((run S64 cd) "backups"))
+S65
+(define S66 ((run S65 md) "alternatives.tar.0"))
+S66
+(define S67 ((run S66 add-file) (file "alternatives.tar.1.gz" "gz" "hello world 1")))
+(define S68 ((run S67 add-file) (file "alternatives.tar.2.gz" "gz" "hello world 1")))
+S68
+(define S69 ((run S68 cd) "/"))
+S69
+(define S70 ((run S69 copy) "var" "C:/Folder"))
+S70
+(define S71 ((run S70 copy) "var" "C:/"))
+S71
+(define S72 ((run S71 copy) "var" "C:/FOLDER"))
+S72
