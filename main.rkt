@@ -591,6 +591,12 @@
                              (string-contains? fileName "*")
                              ))
 
+;; Se crea esta función para verificar si contiene punto.
+(define contiene-punto (lambda (fileName)
+                             (string-contains? fileName ".")
+                             ))
+
+
 ;; Se comprueba que existe
 (define existe-archivo-en-directorio (lambda (files path fileName)
                                        (if 
@@ -630,10 +636,14 @@
                                                    (filter
                                                     ;; Se filtra la carpeta
                                                     (lambda (archivo)
-                                                      (not (string=?
-                                                            ((get-path-complete system) fileName)
-                                                            (string-append (get-path archivo) (if (string=? fileName "/") (get-name-folder archivo) (string-append "/" (get-name-folder archivo))))
-                                                            )
+                                                      (not (and (string=?
+                                                            fileName
+                                                            (get-file-name archivo)
+                                                            ) (string=?
+                                                               (get-path archivo)
+                                                               (get-system-path system)
+                                                               )
+                                                              )
                                                            )
                                                       )     
                                                      (get-system-folder system)
@@ -648,12 +658,16 @@
                                        (filter
                                         ;; Se filtra la carpeta
                                         (lambda (archivo)
-                                          (not (string=?
-                                                ((get-path-complete system) fileName)
-                                                (string-append (get-path archivo) (if (string=? fileName "/") (get-name-folder archivo) (string-append "/" (get-name-folder archivo))))
-                                                )
-                                               )
-                                          )     
+                                                      (not (and (string=?
+                                                            fileName
+                                                            (get-file-name archivo)
+                                                            ) (string=?
+                                                               (get-path archivo)
+                                                               (get-system-path system)
+                                                               )
+                                                              )
+                                                           )
+                                                      )       
                                         (get-system-folder system)
                                         )
                                       (get-system-fecha-creacion system)
@@ -860,7 +874,7 @@
                                         (filter
                                          (lambda
                                              (archivo)
-                                            (eq? source (get-name-folder archivo))  
+                                            (and (string=? source (get-name-folder archivo)) (string=? path (get-path archivo)))
                                            )
                                          drive
                                          )
@@ -984,6 +998,68 @@
                                     )
                                 ))
 
+;; Cambia el path cambiando solo el nombre de la carpeta
+(define cambiar-path-renombrar-carpeta (lambda (files source path)
+                                (if (null? files)
+                                    null
+                                    (if (string=? (get-type-file (car files)) "folder")
+                                        ;; En caso de que sea una carpeta se crea una carpeta
+                                        (cons
+                                         (make-new-folder
+                                          (get-name-folder (car files))
+                                          (get-user-in-folder (car files))
+                                          (if
+                                           (string-contains? (get-path (car files)) source)
+                                           (string-replace (get-path (car files)) source (if (equal? path "/") (substring path 1 (string-length path)) path))
+                                           (get-path (car files)))
+                                          (get-folder-security-atributes (car files))
+                                          )
+                                         (cambiar-path-renombrar-carpeta (cdr files) source path)
+                                         )
+                                        ;; En caso de que sea un archivo
+                                        (cons
+                                         (make-file
+                                          (new-file (get-file-name (car files)) (get-file-extension (car files)) (get-file-content (car files)) (get-file-security-atributes (car files)))
+                                          (get-user-in-file (car files))
+                                          (if
+                                           (string-contains? (get-path (car files)) source)
+                                           (string-replace (get-path (car files)) source (if (equal? path "/") (substring path 1 (string-length path)) path))
+                                           (get-path (car files)))
+                                          ) 
+                                         (cambiar-path-renombrar-carpeta (cdr files) source path))
+                                        )
+                                    )
+                                ))
+
+;; Cambia el nombre a una carpeta al renombrarla, el path ya fue cambiado.
+(define cambiar-nombre-a-carpeta (lambda (files oldName name)
+                                   (map
+                                    (lambda (archivo)
+                                      (if (string=? (get-name-folder archivo) oldName)
+                                          (make-new-folder
+                                           name
+                                           (get-user-in-folder archivo)
+                                           (get-path archivo)
+                                           (get-folder-security-atributes archivo)
+                                           )
+                                          archivo)
+                                      )
+                                    files)
+                                   ))
+
+;; Cambiar nombre a un archivo, el path ya fue modificado
+(define cambiar-nombre-a-archivo (lambda (archivo name)
+                                   (make-file
+                                    (new-file
+                                     name
+                                     (if (contiene-punto name) (string-append "." (last (string-split name "."))) (get-file-extension archivo))
+                                     (get-file-content archivo)
+                                     (get-file-security-atributes archivo)
+                                     )
+                                    (get-user-in-file archivo)
+                                    (get-path archivo)
+                                    )
+                                   ))
                              
 ;; Se crea requerimiento de Copy, esta función usará la función de obtener un archivo
 ;; en un mismo directorio, y también la función de crear un archivo
@@ -1096,7 +1172,7 @@
                        (eq? (verificar-carpetas-duplicadas source (substring targetPath 2 (string-length targetPath)) (get-system-folder system)) 0)
                        (if
                         (equal? (get-type-file (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))) "folder")
-                           ((del ((insertar-conjunto-de-carpetas-y-archivos system) (cambiar-path-carpetas
+                           ((insertar-conjunto-de-carpetas-y-archivos ((del system) source)) (cambiar-path-carpetas
                                                        (get-all-files-in-subdirectories
                                                         (get-system-folder system)
                                                         source
@@ -1106,11 +1182,11 @@
                                                         )
                                                        (substring targetPath 2 (string-length targetPath))
                                                        )
-                                                      )) source)
-                           ((del ((insertar-archivo system) (cambiar-path-archivo
+                                                      ) 
+                           ((insertar-conjunto-de-carpetas-y-archivos ((del system)) source) (cambiar-path-archivo
                                                        (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))
                                                        (get-system-current-user system)
-                                                       (substring targetPath 2 (string-length targetPath))))) source)
+                                                       (substring targetPath 2 (string-length targetPath))))
                            )
                        system
                        )
@@ -1123,7 +1199,7 @@
                        (eq? (verificar-carpetas-duplicadas source (substring targetPath 2 (string-length targetPath)) (get-system-folder ((switch-drive system) (string-ref targetPath 0)))) 0)
                        (if
                         (equal? (get-type-file (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))) "folder")
-                           ((del ((switch-drive ((insertar-conjunto-de-carpetas-y-archivos ((switch-drive system) (string-ref targetPath 0)))
+                           ((switch-drive ((insertar-conjunto-de-carpetas-y-archivos ((switch-drive ((del system) source)) (string-ref targetPath 0)))
                             (cambiar-path-carpetas
                              (get-all-files-in-subdirectories
                               (get-system-folder system)
@@ -1137,13 +1213,13 @@
                                )
                               )
                              (substring targetPath 2 (string-length targetPath)))
-                            )) (get-system-current-drive system))) source)
-                           ((del ((switch-drive ((insertar-archivo ((switch-drive system) (string-ref targetPath 0)))
+                            )) (get-system-current-drive system))
+                           ((switch-drive ((insertar-archivo ((switch-drive ((del system) source)) (string-ref targetPath 0)))
                             (cambiar-path-archivo
                              (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))
                              (get-system-current-user system)
                              (substring targetPath 2 (string-length targetPath)))
-                            )) (get-system-current-drive system))) source)
+                            )) (get-system-current-drive system))
                            )
                        system
                        )
@@ -1171,6 +1247,42 @@
                    )
                  )))
 
+
+;; Requerimiento de renombrar un archivo o carpeta
+(define ren (lambda (system)
+               (lambda (source targetName)
+                 ;; Se verifica que el archivo exista en la ruta actual
+                 (if
+                  (null? (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))
+                 system
+                  ;; Si lo es, verifica que al insertar el archivo en en la ruta deseada no sea duplicado
+                  (if
+                   (eq? (verificar-carpetas-duplicadas targetName (get-system-path system) (get-system-folder system)) 0)
+                   (if
+                    (eq? (get-type-file (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))) "folder")
+                    ((insertar-conjunto-de-carpetas-y-archivos ((del system) source)) (cambiar-nombre-a-carpeta (cambiar-path-renombrar-carpeta
+                                                                        (get-all-files-in-subdirectories
+                                                                         (get-system-folder system)
+                                                                         source
+                                                                         (get-subdirectory-of-folder
+                                                                          (string-append (if (eq? (get-system-path system) "/") (get-system-path system) (string-append (get-system-path system) "/")) source)
+                                                                          (get-all-existing-paths (get-system-folder system)))
+                                                                         )
+                                                                        source
+                                                                        targetName
+                                                                        ) source targetName)
+                                                                       )
+                    ((insertar-archivo ((del system) source)) (cambiar-nombre-a-archivo (cambiar-path-archivo
+                                                (car (get-file-in-current-directory (get-system-folder system) source (get-system-path system)))
+                                                (get-system-current-user system)
+                                                (get-system-path system)) targetName))
+                    )
+                   system
+                   )
+                  )
+                 )))
+                     
+                 
 
 ;; Script
 ;; Se crea el sistema
@@ -1318,5 +1430,15 @@ S70
 S71
 (define S72 ((run S71 copy) "var" "C:/FOLDER"))
 S72
-(define S73 ((run S72 move) "var" "D:/home seba"))
+(define S73 ((run S72 move) "var" "C:/"))
 S73
+(define S74 ((run S73 cd) "/"))
+S74
+(define S75 ((run S74 ren) "var" "usr"))
+S75
+(define S76 ((run S75 ren) "foo1.txt" "foo2.txt"))
+S76
+(define S77 ((run S76 cd) "/home seba"))
+S77
+(define S78 ((run S77 ren) "foo1.txt" "foo2.txa"))
+S78
