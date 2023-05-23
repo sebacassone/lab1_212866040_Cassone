@@ -1,0 +1,39 @@
+Requisitos no funcionales:
+1. Autoevaluación: 1 Implementación completa sin problemas
+2. Lenguaje: 1 Implementación completa sin problemas
+3. Version: 1 Implementación completa sin problemas
+4. Standart: 1 Implementación completa sin problemas
+5. No Variables: 1 Implementación completa sin problemas
+6. Documentación: 1 Implementación completa sin problemas
+7. Dom->Rec: 1 Implementación completa sin problemas
+8. Organización: 0.25 Implementación con problemas mayores
+9. Historial: 1 Implementación completa sin problemas
+10. Script: 0.25 Implementación con problemas mayores
+11. Prerrequisitos: 1 Implementación completa sin problemas
+
+Requisitos funcionales:
+1. TDA: 1 Implementación completa sin problemas.
+2. TDA system - constructor: 1 Implementación completa sin problemas.
+3. TDA system - run: 1 Implementación completa sin problemas.
+4. TDA system - add-drive: 1 Implementación completa sin problemas.
+5. TDA system - register: 1 Implementación completa sin problemas.
+6. TDA system - login: 1 Implementación completa sin problemas.
+7. TDA system - logout: 1 Implementación completa sin problemas.
+8. TDA system - switch-drive: 1 Implementación completa sin problemas.
+9. TDA system - md (make directory): 1 Implementación completa sin problemas.
+10. TDA system - cd (change directory): 1 Implementación completa sin problemas.
+11. TDA system - add-file: 1 Implementación completa sin problemas.
+12. TDA system - del: 1 Implementación completa sin problemas.
+13. TDA system - rd (remove directory): 1 Implementación completa sin problemas.
+14. TDA system - copy: 1 Implementación completa sin problemas.
+15. TDA system - move: 1 Implementación completa sin problemas. 
+16. TDA system - ren (rename): 1 Implementación completa sin problemas.
+17. TDA system - dir (directory): 1 Implementación completa sin problemas.
+18. TDA system - format: 1 Implementación completa sin problemas.
+19. TDA system - encrypt: 1 Implementación completa sin problemas.
+20. TDA system - decrypt: 1 Implementación completa sin problemas.
+21. TDA system - plus-one: 1 Implementación completa sin problemas.
+22. TDA system - minus-one: 1 Implementación completa sin problemas.
+23. TDA system - grep: 1 Implementación completa sin problemas.
+24. TDA system - view-trash: 1 Implementación completa sin problemas.
+25. TDA system - restore: 1 Implementación completa sin problemas.
