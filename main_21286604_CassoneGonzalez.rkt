@@ -12,28 +12,35 @@
 
 ;; Constructor de TDA System
 ;; Se inicializa el sistema
+;; Dom -> name
+;; Rec -> system
 (define system (lambda (name) (make-system name '() '() "" "" "" '() '() (current-seconds))))
+
 ;; Se extrae como una función aparte el constructor del sistema ya que será utilizado por otras funciones más.
+;; Dom -> name x users x drives x current-user x current-drive x path x folders x trash x seconds
+;; Rec -> system
 (define make-system (lambda
                         (name users drives current-user current-drive path folders trash seconds)
                       (list name users drives current-user current-drive path folders trash seconds (current-seconds))
                       ))
 
+;; Dom -> letter x name x folders x capacity
+;; Rec -> drive
 ;; Se construye una unidad para la lista de drives
 (define make-drive (lambda
                        (letter name folders capacity) (list letter name folders capacity)))
 
-;; Se construye TDA Security
-(define make-security-atributes (lambda
-                                    (escritura lectura oculto acceso)
-                                  (list escritura lectura oculto acceso)))
 
+;; Dom -> name x password x decryptFn x user-creator x path x security-atributes
+;; Rec -> folder
 ;; Se construye una carpeta
 (define make-folder (lambda
                         (name password decryptFn user-creator path . securityAtributes)
                       (list name (current-seconds) (current-seconds) securityAtributes password decryptFn user-creator "folder" path)
                       ))
 
+;; Dom -> name x password x decryptFn x user-creator x path x security-atributes
+;; Rec -> folder
 (define make-new-folder (lambda
                         (name password decryptFn user-creator path securityAtributes)
                       (list name (current-seconds) (current-seconds) securityAtributes password decryptFn user-creator "folder" path)
@@ -41,45 +48,63 @@
 
 ;; Se constuye un archivo
 ;; TDA File = name (String) x extension (String) x Contenido (String) x secturity-atributes (Security) x type (String) x path (String)
+;; Dom -> name x extension x content x security-atributes
+;; Rec -> file
 (define file (lambda
                  (name extension content . security-atributes)
                (list security-atributes content extension (current-seconds) (current-seconds) name)))
 
+;; Dom -> name x extension x content x security-atributes
+;; Rec -> file
 (define new-file (lambda
                  (name extension content security-atributes)
                (list security-atributes content extension (current-seconds) (current-seconds) name)))
 
 ;; Se le da forma del TDA
+;; Dom -> archivo x password x decryptFn x user-creator x path
+;; Rec -> file
 (define make-file (lambda
                       (archivo password decryptFn user-creator path)
                     (reverse (cons path (cons "file" (cons user-creator (cons decryptFn (cons password archivo))))))
                     ))
 
 ;; Selectores de TDA Archivo
+;; Dom -> archivo
+;; Rec -> name
 (define get-file-name (lambda (archivo)
                         (list-ref archivo 0)))
 
+;; Dom -> archivo
+;; Rec -> extension
 (define get-file-extension (lambda (archivo)
                              (list-ref archivo 3)))
-
+;; Dom -> archivo
+;; Rec -> content
 (define get-file-content (lambda (archivo)
                                 (list-ref archivo 4)))
-
+;; Dom -> archivo
+;; Rec -> security-atributes
 (define get-file-security-atributes (lambda (archivo)
                            (list-ref archivo 5)))
 
+;; Dom -> archivo
+;; Rec -> password-encript
 (define get-file-password-encrypt (lambda (archivo)
                                     (list-ref archivo 6)))
-
+;; Dom -> archivo
+;; Rec -> decryptFn
 (define get-file-decrypt-fn (lambda (archivo)
                                     (list-ref archivo 7)))
-
+;; Dom -> folder
+;; Rec -> security-atributes
 ;; Selectores de TDA Carpeta
 (define get-folder-security-atributes (lambda (folder)
                            (list-ref folder 3)))
 
 ;; Selectores del TDA System
 ;; Obtener de la lista de usuarios el usuario actual
+;; Dom -> lista_usuarios x user
+;; Rec -> user
 (define get-user (lambda
                      (lista_usuarios user)
                    (if (eq? (car lista_usuarios) user)
@@ -87,19 +112,50 @@
                        (get-user (cdr lista_usuarios) user)
                        )
                    ))
+
+;; Dom -> system x user
+;; Rec -> user
 (define get-current-user (lambda (system user) (get-user cadr user)))
 
 ;; Se obtiene el nombre del sistema, usuarios, drives, current-user, current-drive, fecha-creación
+;; Dom -> system
+;; Rec -> name
 (define get-system-name (lambda (sistema) (list-ref sistema 0)))
+
+;; Dom -> system
+;; Rec -> users
 (define get-system-usuarios (lambda (sistema) (list-ref sistema 1)))
+
+;; Dom -> system
+;; Rec -> drives
 (define get-system-drive (lambda (sistema) (list-ref sistema 2)))
+
+;; Dom -> system
+;; Rec -> current-user
 (define get-system-current-user (lambda (sistema) (list-ref sistema 3)))
+
+;; Dom -> system
+;; Rec -> current-drive
 (define get-system-current-drive (lambda (sistema) (list-ref sistema 4)))
+
+;; Dom -> system
+;; Rec -> path
 (define get-system-path (lambda (sistema) (list-ref sistema 5)))
+
+;; Dom -> system
+;; Rec -> folders
 (define get-system-folder (lambda (sistema) (list-ref sistema 6)))
+
+;; Dom -> system
+;; Rec -> trash
 (define get-system-trash (lambda (sistema) (list-ref sistema 7)))
+
+;; Dom -> system
+;; Rec -> fecha-creacion
 (define get-system-fecha-creacion (lambda (sistema) (list-ref sistema 8)))
 
+;; Dom -> system
+;; Rec -> todas las letras de los drives
 ;; Obtener todas las letras existentes de los drives
 (define get-letters-all-drives(
                                lambda (sistema)
@@ -123,7 +179,8 @@
                                 (get-letters-all-drives-int sistema null)
                                 ))
 
-;; Obtiene las carpetas guardadas en el drive con la letra letter (usado en switch drive)
+;; Dom -> drives x letter
+;; Rec -> Obtiene las carpetas guardadas en el drive con la letra letter (usado en switch drive)
 (define get-system-folder-drive (lambda (drives letter)
                                   (if (eq? letter (car (car drives)))
                                       (list-ref (car drives) 2)
@@ -131,7 +188,8 @@
                                       )
                                   ))
 
-;; Obtiene la lista de drives sin contar al drive que contiene la letra letter (usado en mkdir)
+;; Dom -> drives x rest-drives x letter
+;; Rec -> Obtiene la lista de drives sin contar al drive que contiene la letra letter (usado en mkdir)
 (define get-rest-drives (lambda (drives rest-drives letter)
                           (if (null? drives)
                               rest-drives
@@ -142,7 +200,8 @@
                               )
                           ))
 
-;; Obtiene un drive en especifico en una lista de drives por medio de letter 
+;; Dom -> drives x letter
+;; Rec -> Obtiene un drive en especifico en una lista de drives por medio de letter 
 (define get-drive (lambda (drives letter)
                     (if (eq? (car (car drives)) letter)
                         (car drives)
@@ -150,38 +209,55 @@
                         )
                     ))
 
+;; Dom -> drive
+;; Rec -> name
 ;; Obtiene el nombre del drive
 (define get-name-drive (lambda (drive)
                          (list-ref drive 1)
                          ))
-
+;; Dom -> drive
+;; Rec -> capacity
 ;; Obtiene la capacidad del drive
 (define get-capacity-drive (lambda (drive)
                              (list-ref drive 3)))
 
+;; Dom -> folder
+;; Rec -> name
 ;; Obtiene el nombre de una carpeta
 (define get-name-folder (lambda (folder)
                           (list-ref folder 0)))
 
+;; Dom -> folder
+;; Rec -> user
 ;; Obtener el nombre de usuario en una carpeta
 (define get-user-in-folder (lambda (folder)
                              (list-ref folder 6)))
 
+;; Dom -> file
+;; Rec -> password-encrypt
 (define get-folder-password-encrypt (lambda (archivo)
                                     (list-ref archivo 4)))
 
+;; Dom -> file
+;; Rec -> decrypt-fn
 (define get-folder-decrypt-fn (lambda (archivo)
                                     (list-ref archivo 5)))
 
+;; Dom -> file
+;; Rec -> user
 ;; Obtener el nombre de usuario en un archivo
 (define get-user-in-file (lambda (archivo)
                            (list-ref archivo 8)))
- 
+
+;; Dom -> folder
+;; Rec -> path
 ;; Obtener path de una carpeta
 (define get-path (lambda (folder)
                    (last folder)
                    ))
 
+;; Dom -> folder
+;; Rec -> type
 ;; Obtiene que tipo de archivo es
 (define get-type-file (lambda (file-list)
                         (cond
@@ -190,11 +266,14 @@
                           )
                         ))
 
+;; Dom -> folders
+;; Rec -> paths
 ;; Esta función obtiene todas las rutas existentes
 (define get-all-existing-paths (lambda (folders)
                                  (cons "/" (map (lambda (folder) (string-append (get-path folder) (if (eq? (get-path folder) "/") (get-name-folder folder) (string-append "/" (get-name-folder folder))))) (filter (lambda (folder) (eq? (get-type-file folder) "folder")) folders)))
                                  ))
-
+;; Dom -> file
+;; Rec -> extension
 ;; Obtiene la extensión de un archivo
 (define get-extension-file (lambda (archivo)
                                     (list-ref archivo 3)))
@@ -209,14 +288,20 @@
 ;; Si es un comando que opera sobre archivo se verificará que el usuario tenga permisos sobre el archivo
 ;; o carpeta, para esto obtendremos el archivo en cuestión y verificaremos si el usuario tiene permisos.
 ;; "grep" "add-file" "del" "move" "ren" "encrypt" "decrypt" "restore"
+;; Dom -> funcion
+;; Rec -> tipo-de-comando
 (define tipo-de-comando (lambda (funcion)
                           (if (memq funcion (list copy))
                               1
                               0)
                           ))
 ;; Se verifican permisos
-(define (verificar-permisos patito) 1)
+;; Dom -> permiso
+;; Rec -> 1 o 0
+(define (verificar-permisos permiso) 1)
 
+;; Dom -> sistema x funcion
+;; Rec -> resultado de la función
 ;; Diferencia de inmediato los tipos de comandos para poder verificar los permisos necesarios
 (define run
   (lambda
@@ -234,6 +319,8 @@
           )
     ))
 
+;; Dom -> sistema x letter x name x capacity
+;; Rec -> sistema
 ;; Se agrega una unidad fisica o lógica a la lista de unidades (drives)
 (define add-drive
   (lambda (system)
@@ -253,6 +340,8 @@
           )
       )))
 
+;; Dom -> sistema x username
+;; Rec -> sistema
 ;; Se crea un nuevo usuario 
 (define register (lambda (system)
                    (lambda (userName)
@@ -270,6 +359,8 @@
                          )
                      )))
 
+;; Dom -> sistema x username
+;; Rec -> sistema
 ;; Se inicia sesión en un usuario solo si este existe.
 (define login (lambda (system)
                 (lambda (userName)
@@ -287,6 +378,8 @@
                       )
                   )))
 
+;; Dom -> sistema
+;; Rec -> sistema
 ;; Se cierra sesión de un usuario solo si este existe
 (define logout (lambda (system)
                  (if (not (eq? "" (get-system-current-user system)))
@@ -303,6 +396,8 @@
                      )
                  ))
 
+;; Dom -> sistema x letter
+;; Rec -> sistema
 ;; Cambia de drive solo si hay un usuario logeado
 ;; Debe tener dos cosas principalmente, en system debe marcar que se seleccionó la letra que se quiere
 ;; y además debe replicar los archivos que están en el disco dejandolos en system también.
@@ -324,7 +419,9 @@
                              system
                              )
                          )))
-                             
+
+;; Dom -> sistema x path x folders
+;; Rec -> 0 o 1                 
 ;; Crea carpetas
 (define verificar-carpetas-duplicadas (lambda (name path folders)
                                         ;; Filtro solo las carpetas de esta ruta
@@ -343,7 +440,9 @@
                                          )
                                         )
   )
-                                        
+
+;; Dom -> sistema x name
+;; Rec -> sistema                              
 ;; Crea la carpeta
 (define md (lambda (system)
                 (lambda (name)
@@ -373,6 +472,8 @@
                       )
                  )))
 
+;; Dom -> path
+;; Rec -> path
 ;; Todas estas funciones son usadas para hacer el cambio de directorio
 ;; Cambiar de Directorio en caso de los ..
 (define (eliminar-palabra-final path)
@@ -383,6 +484,8 @@
   
   (eliminar-palabra-final-int (string-split path "/") '()))
 
+;; Dom -> originalPath x newPath
+;; Rec -> system
 ;; Esta función hace el cambio de path, luego se tiene que verificar que este path existe
 (define change-path (lambda (originalPath newPath)
                       (cond
@@ -430,6 +533,8 @@
                        )
                       ))
 
+;; Dom -> system x path
+;; Rec -> system
 ;; Esta función se encarga de hacer el cambio de unidad previo a hacer el cambio de path
 (define cd (lambda (system)
              (lambda (path)
@@ -452,7 +557,9 @@
                        )
                    )
                )))
-                 
+
+;; Dom -> system x path
+;; Rec -> system     
 ;; Esta función finalmente hace el cambio de path
 (define change-directory (lambda (system)
              (lambda (path)
@@ -508,6 +615,8 @@
              )
   )
 
+;; Dom -> system x file
+;; Rec -> system
 ;; Crear un nuevo archivo
 (define add-file (lambda (system)
                    (lambda (file)
@@ -537,6 +646,8 @@
                          )
                      )))
 
+;; Dom -> system x fileName
+;; Rec -> system
 ;; Obtiene el path completo de un archivo para verificar que sea una carpeta válida
 (define get-path-complete (lambda (system)
                             (lambda (fileName)
@@ -550,11 +661,15 @@
                                   )
                               )))
 
+;; Dom -> path x paths
+;; Rec -> folders
 ;; Obtener todos los subdirectorios de una ruta
 (define get-subdirectory-of-folder (lambda (path paths)
                                      (cons path (filter (lambda (palabra) (string-contains? palabra (if (string=? path "/") path (string-append path "/")))) paths))
                                      ))
 
+;; Dom -> files x subdirectories
+;; Rec -> files
 ;; Comienza a recorrer los subdirectorios a eliminar
 (define delete-all-files (lambda (files subdirectories)
                            (if (null? subdirectories)
@@ -583,7 +698,8 @@
                                )
                            ))
                            
-
+;; Dom -> system x path
+;; Rec -> system
 ;; Se encarga de eliminar una carpeta en un drive
 (define delete-folder (lambda (system)
                         (lambda (path)
@@ -619,17 +735,22 @@
                                       )
                           )))
 
+;; Dom -> fileName
+;; Rec -> bool
 ;; Se crea esta función para verificar si contiene asteriscos.
 (define contiene-asterisco (lambda (fileName)
                              (string-contains? fileName "*")
                              ))
 
+;; Dom -> fileName
+;; Rec -> bool
 ;; Se crea esta función para verificar si contiene punto.
 (define contiene-punto (lambda (fileName)
                              (string-contains? fileName ".")
                              ))
 
-
+;; Dom -> files x path x fileName
+;; Rec -> bool
 ;; Se comprueba que existe
 (define existe-archivo-en-directorio (lambda (files path fileName)
                                        (if 
@@ -654,6 +775,8 @@
                                         )
                                        ))
 
+;; Dom -> system x fileName
+;; Rec -> system
 ;; Se hace función para eliminar
 (define delete-file (lambda (system)
                       (lambda (fileName)
@@ -724,6 +847,8 @@
                             )
                         )))
 
+;; Dom -> system x drive x filesForDelete
+;; Rec -> files
 ;; Se eliminan los archivos obtenidos del filtro en set-files
 (define delete-files-in-set-files
   (lambda (system)
@@ -745,6 +870,8 @@
           )
       )))
 
+;; Dom -> system x fileName
+;; Rec -> system
 ;; Se elimina con el asterisco
 (define delete-set-files (lambda (system)
                            (lambda (fileName)
@@ -923,6 +1050,8 @@
 ;; El primer es que sea una carpeta y elimina todo el contenido en él
 ;; El segundo caso es que sea un archivo
 ;; El tercero que sean varios archivos según un patrón
+;; Dom -> system x fileName
+;; Rec -> system
 (define del (lambda (system)
               (lambda (fileName)
                 ;; Si la carpeta existe y es efectivamente una carpeta
@@ -946,6 +1075,8 @@
                  )
                 )))
 
+;; Dom -> system x fileName
+;; Rec -> system
 ;; Se crea requerimiento de remover directorio vacío (simil a rmdir en linux)
 (define rd (lambda (system)
              (lambda (folderName)
@@ -968,6 +1099,8 @@
                  system)
                )))
 
+;; Dom -> drive source path
+;; Rec -> file
 ;; Función que obtiene el archivo según su nombre actual
 (define get-file-in-current-directory (lambda (drive source path)
                                         (filter
@@ -979,12 +1112,16 @@
                                          )
                                         ))
 
+;; Dom -> archivo x user x path
+;; Rec -> archivo
 ;; Función para modificar el path de un archivo
 (define cambiar-path-archivo (lambda (archivo user path)
                                (make-file (new-file (get-file-name archivo) (get-file-extension archivo) (get-file-content archivo) (get-file-security-atributes archivo)) (get-file-password-encrypt archivo) (get-file-decrypt-fn archivo) user path)
                                ))
                                
 
+;; Dom -> system x folders
+;; Rec -> system
 ;; Función insertar archivo
 (define insertar-archivo (lambda (system)
                            (lambda (folders)
@@ -1012,6 +1149,8 @@
                            )
   )
 
+;; Dom -> system x folders
+;; Rec -> system
 (define insertar-conjunto-de-carpetas-y-archivos (lambda (system)
                            (lambda (folders)
                              (make-system (get-system-name system)
@@ -1039,6 +1178,8 @@
                            )
   )
 
+;; Dom -> files x source subdirectoires
+;; Rec -> folders
 ;; Obtener todas las carpetas y directorios de una ruta
 (define get-all-files-in-subdirectories (lambda (files source subdirectories)
                                           (define get-all-files-in-subdirectories-int (lambda (files source subdirectories endFiles)
@@ -1073,7 +1214,8 @@
   )
 
 
-
+;; Dom -> files x path
+;; Rec -> files o folders
 ;; Cambia el path de todo un conjunto de archivos
 (define cambiar-path-carpetas (lambda (files path)
                                 (if (null? files)
@@ -1105,6 +1247,8 @@
                                     )
                                 ))
 
+;; Dom -> files x source x path
+;; Rec -> files o folders
 ;; Cambia el path cambiando solo el nombre de la carpeta
 (define cambiar-path-renombrar-carpeta (lambda (files source path)
                                 (if (null? files)
@@ -1142,6 +1286,8 @@
                                     )
                                 ))
 
+;; Dom -> files x oldName x name
+;; Rec -> folder
 ;; Cambia el nombre a una carpeta al renombrarla, el path ya fue cambiado.
 (define cambiar-nombre-a-carpeta (lambda (files oldName name)
                                    (map
@@ -1160,6 +1306,8 @@
                                     files)
                                    ))
 
+;; Dom -> file x name
+;; Rec -> file
 ;; Cambiar nombre a un archivo, el path ya fue modificado
 (define cambiar-nombre-a-archivo (lambda (archivo name)
                                    (make-file
@@ -1175,7 +1323,9 @@
                                     (get-path archivo)
                                     )
                                    ))
-                             
+
+;; Dom -> files x source x targetPath
+;; Rec -> system                         
 ;; Se crea requerimiento de Copy, esta función usará la función de obtener un archivo
 ;; en un mismo directorio, y también la función de crear un archivo
 (define cp (lambda (system)
@@ -1251,6 +1401,8 @@
                  )
                  )))
 
+;; Dom -> system x source x targetPath
+;; Rec -> system
 ;; Esta función es intermediara entre cp, para verificar si las unidades existen y todo eso
 (define copy (lambda (system)
                (lambda (source path)
@@ -1270,6 +1422,8 @@
                    )
                  )))
 
+;; Dom -> system x source x targetPath
+;; Rec -> system
 ;; Función que hace lo mismo que copy pero elimina el archivo de origen
 (define mv (lambda (system)
                (lambda (source targetPath)
@@ -1344,6 +1498,8 @@
                  )
                  )))
 
+;; Dom -> system x source x targetPath
+;; Rec -> system
 (define move (lambda (system)
                (lambda (source path)
                  (if (string=? "/" path)
@@ -1362,7 +1518,8 @@
                    )
                  )))
 
-
+;; Dom -> system x source x targetPath
+;; Rec -> system
 ;; Requerimiento de renombrar un archivo o carpeta
 (define ren (lambda (system)
                (lambda (source targetName)
@@ -1397,6 +1554,8 @@
                   )
                  )))
 
+;; Dom -> system  x params
+;; Rec -> string
 ;; Requerimiento de DIR
 (define dir (lambda (system)
               (lambda (params)
@@ -1492,6 +1651,8 @@
                 )))
 
 ;; Format
+;; Dom -> system x letter x name
+;; Rec -> system
 (define formatear-unidad (lambda (system)
                            (lambda (letter name)
                              (make-system (get-system-name system)
@@ -1517,6 +1678,8 @@
                            )
   )
 
+;; Dom -> system x letter x name
+;; Rec -> system
 (define format (lambda (system)
                  (lambda (letter name)
                    (if (memq letter (get-letters-all-drives system))
@@ -1527,6 +1690,8 @@
                  )
   )
 
+;; Dom -> palabra
+;; Rec -> palabra
 ;; Funciones que tienen que ver con encriptación de archivos
 (define plus-one (lambda (palabra)
                    (list->string
@@ -1535,6 +1700,8 @@
                          (string->list palabra)))
                    ))
 
+;; Dom -> palabra
+;; Rec -> palabra
 (define minus-one (lambda (palabra)
                    (list->string
                     (map (lambda (caracter)
@@ -1543,7 +1710,8 @@
                     )
                    ))
 
-
+;; Dom -> files x encryptFn x minus-one x password
+;; Rec -> files
 (define encriptar-carpetas (lambda (files encryptFn minus-one password)
                                    (map
                                     (lambda (archivo)
@@ -1573,6 +1741,8 @@
                              files)
                              ))
 
+; Dom -> archivo x encryptFn x minus-one x password
+;; Rec -> archivo
 (define encriptar-archivo (lambda (archivo encryptFn minus-one password) 
                             (make-file
                              (new-file
@@ -1588,6 +1758,8 @@
                              )      
                             ))
 
+;; Dom -> system x encryptFn x minus-one x password x folderName
+;; Rec -> system
 (define encrypt (lambda (system)
                   (lambda (encryptFn minus-one password folderName)
                  ;; Se verifica que el archivo exista en la ruta actual
@@ -1619,6 +1791,8 @@
                      )
                     )))
 
+;; Dom -> system x folders x folderName
+;; Rec -> system
 ;; Desencriptar un archivo
 ;; Esta función obtiene todas las rutas existentes
 (define insertar-conjunto-de-carpetas-y-archivos-encrypt (lambda (system)
@@ -1662,6 +1836,8 @@
                            )
   )
 
+;; Dom -> system x folders x folderName
+;; Rec -> system
 (define insertar-archivo-encrypt (lambda (system)
                            (lambda (folders folderName)
                              (make-system (get-system-name system)
@@ -1689,10 +1865,14 @@
                            )
   )
 
+;; Dom -> folders
+;; Rec -> paths
 (define get-all-existing-paths-decrypt (lambda (folders)
                                  (cons "/" (map (lambda (folder) (string-append (get-path folder) (if (eq? (get-path folder) "/") (minus-one (get-name-folder folder)) (string-append "/" (minus-one (get-name-folder folder)))))) (filter (lambda (folder) (eq? (get-type-file folder) "folder")) folders)))
                                  ))
 
+;; Dom -> files
+;; Rec -> files
 (define desencriptar-carpetas (lambda (files)
                                    (map
                                     (lambda (archivo)
@@ -1722,6 +1902,8 @@
                              files)
                              ))
 
+;; Dom -> files
+;; Rec -> files
 (define desencriptar-archivo (lambda (archivo) 
                             (make-file
                              (new-file
@@ -1737,6 +1919,8 @@
                              )      
                             ))
 
+;; DOm -> system x password x folderName
+;; Rec -> system
 (define decrypt (lambda (system)
                   (lambda (password folderName)
                     (if
@@ -1770,6 +1954,8 @@
                      )))
                     
 ;; Se comienza requermiento de Grep
+;; Dom -> cadena subcadena
+;; Rec -> posicion
 (define buscar-posicion-subcadena (lambda (cadena subcadena)
   (define buscar-posicion-iter (lambda (inicio)
     (cond ((>= inicio (- (string-length cadena) (string-length subcadena)))
@@ -1784,7 +1970,8 @@
   (buscar-posicion-iter 0)))
 
 
-
+;; DOm -> system x pattern x fileName
+;; Rec -> string
 (define grep (lambda (system)
                (lambda (pattern fileName)
                  (if (not (string=? fileName "."))
@@ -1818,9 +2005,13 @@
                      ))))
                  
 ;; Se obtiene la papelera de reciclaje del sistema
+;; Dom -> system
+;; Rec -> string
 (define view-trash (lambda (system)
                      (write (get-system-trash system))))
 
+;; Dom -> system x fileName
+;; Rec -> string
 ;; Se obtiene todos los archivos o solo un archivo en concreto
 (define restore (lambda (system)
                   (lambda (fileName)
